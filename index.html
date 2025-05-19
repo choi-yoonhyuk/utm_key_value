@@ -97,7 +97,7 @@
         const categoryOptions = {}; 
         headers.forEach((header, colIndex) => {
             categoryOptions[header] = new Set(); 
-            for (let i = 1; i < lines.length; i++) { 
+            for (let i = 2; i < lines.length; i++) { 
                 const cells = lines[i].split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
                 if (cells.length > colIndex && cells[colIndex]) {
                     const value = String(cells[colIndex]).trim();
