@@ -16,7 +16,7 @@
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }
     th { background-color: #f0f0f0; position: sticky; top: 0; z-index: 1;}
     th label { display: flex; align-items: center; font-weight: normal; }
-    th label input[type="checkbox"] { margin-right: 5px; cursor: pointer; }
+    th label input[type="checkbox"] { margin-right: 5px; cursor: pointer; } /* 토글 스위치 스타일 */
     #loadingStatus { font-style: italic; color: #777; margin-bottom: 15px; }
     #tableContainerWrapper { max-height: 70vh; overflow-y: auto; border: 1px solid #ddd; }
     .status-message { margin-top: 10px; padding: 10px; border-radius: 4px; display: none; }
@@ -194,11 +194,11 @@
             toggleCheckbox.checked = parametersData[headerText].initialStatus === 'Y';
             toggleCheckbox.dataset.paramName = headerText; // '저장' 시 이 값을 사용
 
-            label.appendChild(toggleCheckbox);
-            label.appendChild(document.createTextNode(" " + headerText));
-            th.appendChild(label);
+            label.appendChild(toggleCheckbox); // 레이블 내부에 체크박스(토글)를 먼저 추가
+            label.appendChild(document.createTextNode(" " + headerText)); // 그 뒤에 파라미터 이름 텍스트 추가
+            th.appendChild(label); // 레이블을 th에 추가
             headerRow.appendChild(th);
-            parameterToggles.set(headerText, toggleCheckbox); // Map에 토글 요소 저장
+            parameterToggles.set(headerText, toggleCheckbox); // Map에 파라미터 이름과 토글 요소 저장
         });
 
         // 옵션 값들 채우기
