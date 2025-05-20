@@ -95,8 +95,8 @@
     const MASTER_OPTIONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vShcppno7HuVQbjoQzbaBMEvoBGt6atss9FI_-F3qSh_pzgtxw7A4NPo6Y2EYoll2y5_8wMt08X_oV0/pub?gid=1861589139&single=true&output=csv';
     const N8N_WEBHOOK_URL_FOR_STATUS_UPDATE = 'https://entrench-consulting.app.n8n.cloud/webhook-test/15daaf64-30ee-4b32-9426-45a8c8bd9184';
 
-    const elementStates = new Map(); // key: "columnName::optionValue", value: isChecked (boolean)
-    const elementCheckboxes = new Map(); // key: "columnName::optionValue", value: Set<HTMLInputElement>
+    const elementStates = new Map(); 
+    const elementCheckboxes = new Map(); 
 
     document.addEventListener('DOMContentLoaded', async () => {
         const loadingStatusEl = document.getElementById('loadingStatus');
@@ -126,7 +126,6 @@
                 return;
             }
             
-            // 'type' 컬럼을 숨기도록 headersToHide 배열에 전달
             const tableElement = createOrganizedTableFromCsv(csvDataText, ['type']); 
             
             tableContainerEl.innerHTML = ''; 
@@ -168,7 +167,7 @@
             statusPayload[`${sanitizedKeyPart}_is_active`] = isChecked ? 'Y' : 'N';
         });
 
-        console.log("Sending element statuses to n8n:", statusPayload);
+        console.log("Sending element statuses to n8n:", statusPayload); // 전송 직전 페이로드 확인
 
         if (Object.keys(statusPayload).length === 0) {
             displayStatusMessage("저장할 옵션 상태가 없습니다.", false);
@@ -191,16 +190,20 @@
                 body: JSON.stringify(statusPayload)
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`n8n 저장 요청 실패 (${response.status}): ${errorText || '알 수 없는 오류'}`);
+            if (!response.ok) { // 여기서 500 에러가 발생
+                const errorText = await response.text(); // n8n의 실제 에러 메시지 확인 시도
+                console.error("n8n response errorText:", errorText); // 콘솔에 n8n 응답 기록
+                throw new Error(`n8n 저장 요청 실패 (${response.status}): ${errorText || '알 수 없는 n8n 오류'}`);
             }
-            await response.json(); 
+            // 성공적으로 2xx 응답을 받은 경우
+            const result = await response.json().catch(() => ({})); // n8n이 빈 응답을 줄 수도 있으므로 파싱 에러 방지
+            console.log("n8n success response:", result);
             displayStatusMessage("옵션 활성 상태가 n8n으로 전송되었습니다.", true);
 
-        } catch (error) {
+        } catch (error) { // fetch 실패 또는 !response.ok 일 때의 throw 포함
             console.error("Error saving element status to n8n:", error);
-            displayStatusMessage(`오류 발생: ${error.message}`, false);
+            // error.message에는 이미 response.status와 n8n의 응답 텍스트가 포함될 수 있음
+            displayStatusMessage(error.message, false); 
         } finally {
             loadingStatusEl.style.display = 'none';
             saveButton.disabled = false;
@@ -217,7 +220,7 @@
         }
 
         const allCsvHeaders = lines[0].split(',').map(header => header.trim().replace(/^"|"$/g, ''));
-        const csvDataRows = lines.slice(2);
+        const csvDataRows = lines.slice(1);
         
         const originalHeaderIndexMap = new Map(); 
         allCsvHeaders.forEach((header, index) => originalHeaderIndexMap.set(header, index));
@@ -227,24 +230,21 @@
         const displayHeaders = [];
         allCsvHeaders.forEach((headerName) => {
             const lowercasedHeader = headerName.toLowerCase();
-            // --- START DEBUG LOG FOR COLUMN HIDING ---
-            // 특정 헤더(예: 'type')가 숨김 처리되는지 확인하기 위한 로그
             if (lowerCaseHeadersToHide.includes(lowercasedHeader)) {
                 console.log(`[CSV Header Check] Hiding Column: Original='${headerName}', Lowercased='${lowercasedHeader}', Matched in Hide list: ${JSON.stringify(lowerCaseHeadersToHide)}`);
             }
-            // --- END DEBUG LOG ---
 
             if (headerName.endsWith('_is_active')) return; 
             if (lowerCaseHeadersToHide.includes(lowercasedHeader)) return; 
             displayHeaders.push(headerName);
         });
         
-        console.log("[Debug] Display Headers:", JSON.stringify(displayHeaders)); // 실제로 표시될 헤더 목록 확인
+        // console.log("[Debug] Final Display Headers:", JSON.stringify(displayHeaders)); 
 
         elementStates.clear();
         elementCheckboxes.clear();
 
-        csvDataRows.forEach(dataLine => {
+        csvDataRows.forEach((dataLine, rowIndex) => { 
             const currentDataCells = dataLine.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
             displayHeaders.forEach(valueColumnName => { 
                 const valueColIndex = originalHeaderIndexMap.get(valueColumnName);
@@ -255,27 +255,34 @@
                 if (cellValue && cellValue.toLowerCase() !== 'undefined') {
                     const uniqueKey = `${valueColumnName}::${cellValue}`;
                     let isActiveForRow = false; 
-
                     const statusColumnNameForThisValue = `${valueColumnName}_is_active`;
                     const statusColIndex = originalHeaderIndexMap.get(statusColumnNameForThisValue);
+                    let statusValueFromCell = "[Status Col Not Found or Out of Bounds]";
 
                     if (statusColIndex !== undefined && currentDataCells.length > statusColIndex) {
-                        const statusValueFromCell = currentDataCells[statusColIndex].toUpperCase();
-                        if (statusValueFromCell === 'Y') {
+                        statusValueFromCell = currentDataCells[statusColIndex];
+                        if (statusValueFromCell.toUpperCase() === 'Y') {
                             isActiveForRow = true;
                         }
                     }
                     
+                    // if (uniqueKey.includes("newsletter") || uniqueKey.includes("video")) { // 특정 키에 대한 상세 로그
+                    //     console.log(`[State Init] Row ${rowIndex+1}, Key: ${uniqueKey}, CSV Status Col: '${statusColumnNameForThisValue}', Raw Status in CSV: '${statusValueFromCell}', isActiveForRow: ${isActiveForRow}, Current Map State for Key (before this row): ${elementStates.get(uniqueKey)}`);
+                    // }
+                    
                     if (elementStates.has(uniqueKey)) {
                         if (isActiveForRow && !elementStates.get(uniqueKey)) { 
                             elementStates.set(uniqueKey, true);
+                            // console.log(`[State Update] Key: ${uniqueKey} updated to true (was false, this row is Y)`);
                         }
                     } else { 
                         elementStates.set(uniqueKey, isActiveForRow);
+                        // console.log(`[State Set] Key: ${uniqueKey} set to ${isActiveForRow} (first encounter)`);
                     }
                 }
             });
         });
+        // console.log("[Debug] Final elementStates populated:", elementStates);
         
         const thead = table.createTHead();
         const headerRow = thead.insertRow();
@@ -327,7 +334,8 @@
 
                         const hiddenCheckbox = document.createElement('input');
                         hiddenCheckbox.type = 'checkbox';
-                        hiddenCheckbox.checked = elementStates.get(uniqueKey) || false;
+                        const initialStateForKey = elementStates.get(uniqueKey);
+                        hiddenCheckbox.checked = initialStateForKey || false; 
                         
                         const sliderSpan = document.createElement('span');
                         sliderSpan.className = 'slider round';
