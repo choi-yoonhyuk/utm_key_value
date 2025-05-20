@@ -126,6 +126,7 @@
                 return;
             }
             
+            // 'type' 컬럼을 숨기도록 headersToHide 배열에 전달
             const tableElement = createOrganizedTableFromCsv(csvDataText, ['type']); 
             
             tableContainerEl.innerHTML = ''; 
@@ -157,13 +158,12 @@
         loadingStatusEl.style.display = 'block';
 
         const statusPayload = {};
-        elementStates.forEach((isChecked, uniqueKey) => { // uniqueKey는 "columnName::optionValue" 형태
+        elementStates.forEach((isChecked, uniqueKey) => { 
             const parts = uniqueKey.split('::');
             let payloadKeyPart = uniqueKey; 
             if (parts.length === 2) {
-                payloadKeyPart = `${parts[0]}_${parts[1]}`; // 예: utm_medium_video
+                payloadKeyPart = `${parts[0]}_${parts[1]}`; 
             }
-            // 특수문자를 언더스코어로 변경하고, 앞뒤 언더스코어 정리
             const sanitizedKeyPart = payloadKeyPart.replace(/[^a-zA-Z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
             statusPayload[`${sanitizedKeyPart}_is_active`] = isChecked ? 'Y' : 'N';
         });
@@ -219,63 +219,58 @@
         const allCsvHeaders = lines[0].split(',').map(header => header.trim().replace(/^"|"$/g, ''));
         const csvDataRows = lines.slice(1);
         
-        const originalHeaderIndexMap = new Map();
+        const originalHeaderIndexMap = new Map(); // CSV 원본 헤더명과 인덱스 매핑
         allCsvHeaders.forEach((header, index) => originalHeaderIndexMap.set(header, index));
 
         const lowerCaseHeadersToHide = headersToHide.map(h => h.toLowerCase());
         
-        const parametersData = {}; 
-
+        // 표시할 컬럼 헤더 목록 결정 (숨길 컬럼 및 _is_active 컬럼 제외)
+        const displayHeaders = [];
         allCsvHeaders.forEach((headerName) => {
             if (headerName.endsWith('_is_active')) return; 
-            if (lowerCaseHeadersToHide.includes(headerName.toLowerCase())) return;
-
-            const statusColumnName = `${headerName}_is_active`;
-            const statusColumnIndex = originalHeaderIndexMap.get(statusColumnName);
-            let isActive = 'Y'; 
-
-            if (statusColumnIndex !== undefined && csvDataRows.length > 0) {
-                const firstDataRowCells = csvDataRows[0].split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
-                if (firstDataRowCells.length > statusColumnIndex && firstDataRowCells[statusColumnIndex]) {
-                    const statusValue = firstDataRowCells[statusColumnIndex].toUpperCase();
-                    isActive = (statusValue === 'Y' || statusValue === 'TRUE' || statusValue === '1') ? 'Y' : 'N';
-                }
-            }
-            parametersData[headerName] = { initialStatus: isActive, options: new Set() };
+            if (lowerCaseHeadersToHide.includes(headerName.toLowerCase())) return; // 'type' 컬럼 등 숨김 처리
+            displayHeaders.push(headerName);
         });
-        
-        const displayHeaders = Object.keys(parametersData);
 
         elementStates.clear();
         elementCheckboxes.clear();
 
-        // parametersData에서 각 컬럼의 옵션들을 수집하고, elementStates 초기화
-        for (const columnName of displayHeaders) {
-            const originalColIndex = originalHeaderIndexMap.get(columnName);
-            if (originalColIndex !== undefined) {
-                csvDataRows.forEach(line => {
-                    const cells = line.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
-                    if (cells.length > originalColIndex && cells[originalColIndex]) {
-                        const optionValue = String(cells[originalColIndex]).trim();
-                        if (optionValue && optionValue.toLowerCase() !== 'undefined') {
-                            parametersData[columnName].options.add(optionValue);
-                            
-                            const uniqueKey = `${columnName}::${optionValue}`;
-                            const columnIsActiveInitially = parametersData[columnName].initialStatus === 'Y';
-                            // elementStates에 해당 uniqueKey가 없거나, 현재 컬럼이 활성 상태일 때만 상태를 업데이트하거나 설정
-                            // (주의: 이 로직은 한 요소가 여러 컬럼에 나타날 때 마지막 컬럼의 상태를 따르거나,
-                            //  OR 논리가 아님. 각 columnName::optionValue는 고유한 상태를 가짐)
-                            if (!elementStates.has(uniqueKey)) { // 최초 발견 시 해당 컬럼의 활성 상태로 설정
-                                elementStates.set(uniqueKey, columnIsActiveInitially);
-                            }
-                            // 만약 한 optionValue가 여러 컬럼 카테고리에 속할 수 있고, 그 중 하나라도 활성이면
-                            // 해당 optionValue가 '전역적으로' 활성으로 간주되어야 한다면, 이 초기화 로직은 더 복잡해져야 합니다.
-                            // 현재는 columnName::optionValue로 완전히 분리된 상태를 가집니다.
+        // CSV 데이터 행을 스캔하여 elementStates 초기화
+        // 각 "컬럼명::요소값" 조합의 초기 활성화 상태를 결정 (Y wins 규칙)
+        csvDataRows.forEach(dataLine => {
+            const currentDataCells = dataLine.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
+            displayHeaders.forEach(valueColumnName => { // 예: "utm_source"
+                const valueColIndex = originalHeaderIndexMap.get(valueColumnName);
+                const cellValue = (valueColIndex !== undefined && currentDataCells.length > valueColIndex) 
+                                ? currentDataCells[valueColIndex] 
+                                : "";
+
+                if (cellValue && cellValue.toLowerCase() !== 'undefined') {
+                    const uniqueKey = `${valueColumnName}::${cellValue}`;
+                    let isActiveForRow = false; // 해당 행에서 이 요소의 기본 상태는 N
+
+                    // 요소값 옆의 is_active 컬럼 (예: "utm_source_is_active")에서 상태 읽기
+                    const statusColumnNameForThisValue = `${valueColumnName}_is_active`;
+                    const statusColIndex = originalHeaderIndexMap.get(statusColumnNameForThisValue);
+
+                    if (statusColIndex !== undefined && currentDataCells.length > statusColIndex) {
+                        const statusValueFromCell = currentDataCells[statusColIndex].toUpperCase();
+                        if (statusValueFromCell === 'Y') {
+                            isActiveForRow = true;
                         }
                     }
-                });
-            }
-        }
+                    
+                    // "Y wins" 규칙 적용: uniqueKey에 대해 한 번이라도 Y가 나오면 최종 Y
+                    if (elementStates.has(uniqueKey)) {
+                        if (isActiveForRow && !elementStates.get(uniqueKey)) { 
+                            elementStates.set(uniqueKey, true);
+                        }
+                    } else { 
+                        elementStates.set(uniqueKey, isActiveForRow);
+                    }
+                }
+            });
+        });
         
         const thead = table.createTHead();
         const headerRow = thead.insertRow();
@@ -319,9 +314,9 @@
                     textSpan.textContent = cellValue;
                     td.appendChild(textSpan);
 
-                    const uniqueKey = `${headerText}::${cellValue}`; // 컬럼명과 요소값으로 고유 키 생성
+                    const uniqueKey = `${headerText}::${cellValue}`; 
 
-                    if (elementStates.has(uniqueKey)) { // 이 컬럼-요소 조합이 관리 대상인지 확인
+                    if (elementStates.has(uniqueKey)) { // 이 컬럼-요소 조합의 상태가 관리되고 있다면 토글 생성
                         const toggleLabel = document.createElement('label');
                         toggleLabel.className = 'toggle-switch';
 
