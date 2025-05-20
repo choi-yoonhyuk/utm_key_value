@@ -22,8 +22,8 @@
     .toggle-switch {
         position: relative;
         display: inline-block;
-        width: 40px; /* 너비 */
-        height: 20px; /* 높이 */
+        width: 40px; 
+        height: 20px; 
         vertical-align: middle;
     }
     .toggle-switch input {
@@ -38,37 +38,37 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background-color: #ccc; /* 비활성 배경색 */
+        background-color: #ccc; 
         -webkit-transition: .4s;
         transition: .4s;
     }
     .slider:before {
         position: absolute;
         content: "";
-        height: 16px; /* 손잡이 높이 */
-        width: 16px;  /* 손잡이 너비 */
-        left: 2px;    /* 손잡이 위치 (왼쪽) */
-        bottom: 2px;  /* 손잡이 위치 (아래) */
+        height: 16px; 
+        width: 16px;  
+        left: 2px;    
+        bottom: 2px;  
         background-color: white;
         -webkit-transition: .4s;
         transition: .4s;
     }
     input:checked + .slider {
-        background-color: #28a745; /* 활성 배경색 (저장 버튼과 동일하게) */
+        background-color: #28a745; 
     }
     input:focus + .slider {
         box-shadow: 0 0 1px #28a745;
     }
     input:checked + .slider:before {
-        -webkit-transform: translateX(20px); /* 이동 거리: 스위치 너비 - 손잡이 너비 - (손잡이 왼쪽 위치 * 2) = 40-16-(2*2) = 20px */
+        -webkit-transform: translateX(20px); 
         -ms-transform: translateX(20px);
         transform: translateX(20px);
     }
     .slider.round {
-        border-radius: 20px; /* 스위치 높이와 동일하게 하여 둥글게 */
+        border-radius: 20px; 
     }
     .slider.round:before {
-        border-radius: 50%; /* 손잡이 둥글게 */
+        border-radius: 50%; 
     }
 
     #loadingStatus { font-style: italic; color: #777; margin-bottom: 15px; }
@@ -95,8 +95,8 @@
     const MASTER_OPTIONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vShcppno7HuVQbjoQzbaBMEvoBGt6atss9FI_-F3qSh_pzgtxw7A4NPo6Y2EYoll2y5_8wMt08X_oV0/pub?gid=1861589139&single=true&output=csv';
     const N8N_WEBHOOK_URL_FOR_STATUS_UPDATE = 'https://entrench-consulting.app.n8n.cloud/webhook-test/15daaf64-30ee-4b32-9426-45a8c8bd9184';
 
-    const elementStates = new Map(); // key: optionValue (string), value: isChecked (boolean)
-    const elementCheckboxes = new Map(); // key: optionValue (string), value: Set<HTMLInputElement> (all hidden checkboxes for this value)
+    const elementStates = new Map(); // key: "columnName::optionValue", value: isChecked (boolean)
+    const elementCheckboxes = new Map(); // key: "columnName::optionValue", value: Set<HTMLInputElement>
 
     document.addEventListener('DOMContentLoaded', async () => {
         const loadingStatusEl = document.getElementById('loadingStatus');
@@ -157,14 +157,21 @@
         loadingStatusEl.style.display = 'block';
 
         const statusPayload = {};
-        elementStates.forEach((isChecked, optionName) => {
-            statusPayload[`${optionName}_is_active`] = isChecked ? 'Y' : 'N';
+        elementStates.forEach((isChecked, uniqueKey) => { // uniqueKey는 "columnName::optionValue" 형태
+            const parts = uniqueKey.split('::');
+            let payloadKeyPart = uniqueKey; 
+            if (parts.length === 2) {
+                payloadKeyPart = `${parts[0]}_${parts[1]}`; // 예: utm_medium_video
+            }
+            // 특수문자를 언더스코어로 변경하고, 앞뒤 언더스코어 정리
+            const sanitizedKeyPart = payloadKeyPart.replace(/[^a-zA-Z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
+            statusPayload[`${sanitizedKeyPart}_is_active`] = isChecked ? 'Y' : 'N';
         });
 
         console.log("Sending element statuses to n8n:", statusPayload);
 
         if (Object.keys(statusPayload).length === 0) {
-            displayStatusMessage("저장할 옵션 상태가 없습니다.", false); // 유효한 요소가 없을 경우
+            displayStatusMessage("저장할 옵션 상태가 없습니다.", false);
             loadingStatusEl.style.display = 'none';
             saveButton.disabled = false;
             return;
@@ -221,7 +228,7 @@
 
         allCsvHeaders.forEach((headerName) => {
             if (headerName.endsWith('_is_active')) return; 
-            if (lowerCaseHeadersToHide.includes(headerName.toLowerCase())) return; 
+            if (lowerCaseHeadersToHide.includes(headerName.toLowerCase())) return;
 
             const statusColumnName = `${headerName}_is_active`;
             const statusColumnIndex = originalHeaderIndexMap.get(statusColumnName);
@@ -242,30 +249,34 @@
         elementStates.clear();
         elementCheckboxes.clear();
 
-        displayHeaders.forEach(headerText => {
-            const originalColIndex = originalHeaderIndexMap.get(headerText);
+        // parametersData에서 각 컬럼의 옵션들을 수집하고, elementStates 초기화
+        for (const columnName of displayHeaders) {
+            const originalColIndex = originalHeaderIndexMap.get(columnName);
             if (originalColIndex !== undefined) {
                 csvDataRows.forEach(line => {
                     const cells = line.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
                     if (cells.length > originalColIndex && cells[originalColIndex]) {
-                        const value = String(cells[originalColIndex]).trim();
-                        if (value && value.toLowerCase() !== 'undefined') {
-                            parametersData[headerText].options.add(value); 
-
-                            const columnIsActive = parametersData[headerText].initialStatus === 'Y';
-                            if (!elementStates.has(value)) {
-                                elementStates.set(value, columnIsActive);
-                            } else { 
-                                if (columnIsActive) {
-                                    elementStates.set(value, true);
-                                }
+                        const optionValue = String(cells[originalColIndex]).trim();
+                        if (optionValue && optionValue.toLowerCase() !== 'undefined') {
+                            parametersData[columnName].options.add(optionValue);
+                            
+                            const uniqueKey = `${columnName}::${optionValue}`;
+                            const columnIsActiveInitially = parametersData[columnName].initialStatus === 'Y';
+                            // elementStates에 해당 uniqueKey가 없거나, 현재 컬럼이 활성 상태일 때만 상태를 업데이트하거나 설정
+                            // (주의: 이 로직은 한 요소가 여러 컬럼에 나타날 때 마지막 컬럼의 상태를 따르거나,
+                            //  OR 논리가 아님. 각 columnName::optionValue는 고유한 상태를 가짐)
+                            if (!elementStates.has(uniqueKey)) { // 최초 발견 시 해당 컬럼의 활성 상태로 설정
+                                elementStates.set(uniqueKey, columnIsActiveInitially);
                             }
+                            // 만약 한 optionValue가 여러 컬럼 카테고리에 속할 수 있고, 그 중 하나라도 활성이면
+                            // 해당 optionValue가 '전역적으로' 활성으로 간주되어야 한다면, 이 초기화 로직은 더 복잡해져야 합니다.
+                            // 현재는 columnName::optionValue로 완전히 분리된 상태를 가집니다.
                         }
                     }
                 });
             }
-        });
-
+        }
+        
         const thead = table.createTHead();
         const headerRow = thead.insertRow();
         displayHeaders.forEach(headerText => {
@@ -292,9 +303,9 @@
             const tr = tbody.insertRow();
             const currentDataCells = dataLine.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
 
-            displayHeaders.forEach(headerText => {
+            displayHeaders.forEach(headerText => { // headerText는 현재 컬럼명
                 const td = tr.insertCell();
-                td.innerHTML = ''; // 셀 초기화
+                td.innerHTML = ''; 
                 const originalColIndex = originalHeaderIndexMap.get(headerText);
                 let cellValue = "";
                 if (originalColIndex !== undefined && currentDataCells.length > originalColIndex) {
@@ -302,19 +313,21 @@
                 }
 
                 if (!cellValue || cellValue.toLowerCase() === 'undefined') {
-                    // 빈 셀은 그대로 둠
+                    // 빈 셀
                 } else {
                     const textSpan = document.createElement('span');
                     textSpan.textContent = cellValue;
                     td.appendChild(textSpan);
 
-                    if (elementStates.has(cellValue)) {
+                    const uniqueKey = `${headerText}::${cellValue}`; // 컬럼명과 요소값으로 고유 키 생성
+
+                    if (elementStates.has(uniqueKey)) { // 이 컬럼-요소 조합이 관리 대상인지 확인
                         const toggleLabel = document.createElement('label');
                         toggleLabel.className = 'toggle-switch';
 
                         const hiddenCheckbox = document.createElement('input');
                         hiddenCheckbox.type = 'checkbox';
-                        hiddenCheckbox.checked = elementStates.get(cellValue) || false;
+                        hiddenCheckbox.checked = elementStates.get(uniqueKey) || false;
                         
                         const sliderSpan = document.createElement('span');
                         sliderSpan.className = 'slider round';
@@ -323,16 +336,16 @@
                         toggleLabel.appendChild(sliderSpan);
                         td.appendChild(toggleLabel);
 
-                        if (!elementCheckboxes.has(cellValue)) {
-                            elementCheckboxes.set(cellValue, new Set());
+                        if (!elementCheckboxes.has(uniqueKey)) {
+                            elementCheckboxes.set(uniqueKey, new Set());
                         }
-                        elementCheckboxes.get(cellValue).add(hiddenCheckbox);
+                        elementCheckboxes.get(uniqueKey).add(hiddenCheckbox);
 
                         hiddenCheckbox.addEventListener('change', () => {
                             const newState = hiddenCheckbox.checked;
-                            elementStates.set(cellValue, newState); 
+                            elementStates.set(uniqueKey, newState); 
 
-                            const checkboxesToSync = elementCheckboxes.get(cellValue);
+                            const checkboxesToSync = elementCheckboxes.get(uniqueKey);
                             if (checkboxesToSync) {
                                 checkboxesToSync.forEach(cb => {
                                     if (cb !== hiddenCheckbox) { 
