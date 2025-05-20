@@ -9,77 +9,94 @@
     .button-container { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; } 
     .button-container button { padding: 10px 15px; font-size: 1em; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; }
     .button-container button:hover { background-color: #0056b3; }
-    .button-container button#saveParameterStatusButton { background-color: #28a745; } /* 저장 버튼 녹색 */
+    .button-container button#saveParameterStatusButton { background-color: #28a745; }
     .button-container button#saveParameterStatusButton:hover { background-color: #218838; }
 
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }
-    th { background-color: #f0f0f0; position: sticky; top: 0; z-index: 1; font-weight: bold; } /* 헤더 글씨 굵게 */
-    /* th label, th label input[type="checkbox"] 관련 스타일 제거 또는 주석 처리 */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: middle; word-wrap: break-word; }
+    th { background-color: #f0f0f0; position: sticky; top: 0; z-index: 1; font-weight: bold; }
+
+    td > span { margin-right: 8px; vertical-align: middle;}
+
+    /* 토글 스위치 CSS */
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 40px; /* 너비 */
+        height: 20px; /* 높이 */
+        vertical-align: middle;
+    }
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc; /* 비활성 배경색 */
+        -webkit-transition: .4s;
+        transition: .4s;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 16px; /* 손잡이 높이 */
+        width: 16px;  /* 손잡이 너비 */
+        left: 2px;    /* 손잡이 위치 (왼쪽) */
+        bottom: 2px;  /* 손잡이 위치 (아래) */
+        background-color: white;
+        -webkit-transition: .4s;
+        transition: .4s;
+    }
+    input:checked + .slider {
+        background-color: #28a745; /* 활성 배경색 (저장 버튼과 동일하게) */
+    }
+    input:focus + .slider {
+        box-shadow: 0 0 1px #28a745;
+    }
+    input:checked + .slider:before {
+        -webkit-transform: translateX(20px); /* 이동 거리: 스위치 너비 - 손잡이 너비 - (손잡이 왼쪽 위치 * 2) = 40-16-(2*2) = 20px */
+        -ms-transform: translateX(20px);
+        transform: translateX(20px);
+    }
+    .slider.round {
+        border-radius: 20px; /* 스위치 높이와 동일하게 하여 둥글게 */
+    }
+    .slider.round:before {
+        border-radius: 50%; /* 손잡이 둥글게 */
+    }
 
     #loadingStatus { font-style: italic; color: #777; margin-bottom: 15px; }
-    #tableContainerWrapper { max-height: 60vh; overflow-y: auto; border: 1px solid #ddd; margin-top:10px;}
+    #tableContainerWrapper { max-height: 75vh; overflow-y: auto; border: 1px solid #ddd; }
     .status-message { margin-top: 10px; padding: 10px; border-radius: 4px; display: none; }
     .status-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
     .status-message.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-
-    #individualElementTogglesContainer {
-        margin-bottom: 20px;
-        padding: 15px;
-        border: 1px solid #e0e0e0;
-        border-radius: 5px;
-        background-color: #f9f9f9;
-        max-height: 200px; /* 필요시 높이 조절 */
-        overflow-y: auto;
-    }
-    #individualElementTogglesContainer .toggle-item {
-        display: flex; /* 한 줄에 표시되도록 flex 사용 */
-        align-items: center; /* 수직 중앙 정렬 */
-        margin-bottom: 8px;
-        padding: 5px;
-        border-radius: 3px;
-    }
-    #individualElementTogglesContainer .toggle-item:hover {
-        background-color: #f0f0f0;
-    }
-    #individualElementTogglesContainer input[type="checkbox"] {
-        margin-right: 8px;
-        cursor: pointer;
-        width: 16px; /* 크기 조절 */
-        height: 16px; /* 크기 조절 */
-    }
-    #individualElementTogglesContainer label {
-        cursor: pointer;
-        font-size: 0.95em;
-    }
 </style>
 </head>
 <body>
 <div class="button-container">
     <button onclick="location.href='https://choi-yoonhyuk.github.io/source_medium_drop/'">UTM 빌더로 이동</button>
-    <button id="saveParameterStatusButton">개별 옵션 활성 상태 저장</button>
+    <button id="saveParameterStatusButton">옵션 활성 상태 저장</button>
 </div>
 <h1>UTM 옵션 마스터 목록</h1>
 <p id="loadingStatus">데이터 로딩 중...</p>
 <div id="statusMessage" class="status-message"></div>
 
-<h2 style="font-size: 1.2em; margin-top: 30px; margin-bottom: 10px;">개별 옵션 활성화 관리</h2>
-<div id="individualElementTogglesContainer">
-    <p>옵션 목록을 불러오는 중...</p>
-</div>
-
-<h2 style="font-size: 1.2em; margin-top: 20px; margin-bottom: 10px;">UTM 조합 테이블</h2>
 <div id="tableContainerWrapper">
     <div id="optionsTableContainer"></div>
 </div>
 
 <script>
-    // 1. "옵션 마스터 시트"의 CSV 웹 게시 URL
     const MASTER_OPTIONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vShcppno7HuVQbjoQzbaBMEvoBGt6atss9FI_-F3qSh_pzgtxw7A4NPo6Y2EYoll2y5_8wMt08X_oV0/pub?gid=1861589139&single=true&output=csv';
-    // 2. Google Sheet 상태 업데이트를 위한 n8n 웹훅 URL (사용자 실제 URL로 변경 필수)
     const N8N_WEBHOOK_URL_FOR_STATUS_UPDATE = 'https://entrench-consulting.app.n8n.cloud/webhook-test/15daaf64-30ee-4b32-9426-45a8c8bd9184';
 
-    const parameterToggles = new Map(); // 이제 개별 '요소'의 토글을 저장 (예: "cpc" -> checkbox DOM)
+    const elementStates = new Map(); // key: optionValue (string), value: isChecked (boolean)
+    const elementCheckboxes = new Map(); // key: optionValue (string), value: Set<HTMLInputElement> (all hidden checkboxes for this value)
 
     document.addEventListener('DOMContentLoaded', async () => {
         const loadingStatusEl = document.getElementById('loadingStatus');
@@ -90,7 +107,6 @@
             loadingStatusEl.textContent = "오류: 구글 시트 CSV URL이 설정되지 않았습니다.";
             loadingStatusEl.style.color = "red";
             saveButton.disabled = true;
-            document.getElementById('individualElementTogglesContainer').innerHTML = '<p style="color:red;">CSV URL 오류로 옵션 목록을 표시할 수 없습니다.</p>';
             return;
         }
         if (!N8N_WEBHOOK_URL_FOR_STATUS_UPDATE || N8N_WEBHOOK_URL_FOR_STATUS_UPDATE.startsWith('여기에_')) {
@@ -107,18 +123,14 @@
             if (!csvDataText.trim()) {
                 loadingStatusEl.textContent = "옵션 데이터가 비어있거나 가져올 수 없습니다.";
                 tableContainerEl.innerHTML = '<p>표시할 옵션 데이터가 없습니다.</p>';
-                document.getElementById('individualElementTogglesContainer').innerHTML = '<p>표시할 옵션이 없습니다.</p>';
                 return;
             }
-
-            // parametersDataFromCsv는 { columnName: { initialStatus: 'Y'/'N', options: Set } } 형태
-            const { tableElement, parametersDataFromCsv } = createOrganizedTableFromCsv(csvDataText, ['type']); 
+            
+            const tableElement = createOrganizedTableFromCsv(csvDataText, ['type']); 
             
             tableContainerEl.innerHTML = ''; 
             tableContainerEl.appendChild(tableElement); 
             
-            renderIndividualElementToggles(parametersDataFromCsv); // 개별 요소 토글 생성 함수 호출
-
             loadingStatusEl.style.display = 'none'; 
 
         } catch (error) {
@@ -126,7 +138,6 @@
             loadingStatusEl.textContent = `오류: ${error.message}`;
             loadingStatusEl.style.color = "red";
             tableContainerEl.innerHTML = '<p>옵션 목록을 불러오는 데 실패했습니다.</p>';
-            document.getElementById('individualElementTogglesContainer').innerHTML = `<p style="color:red;">오류로 인해 옵션 목록을 표시할 수 없습니다: ${error.message}</p>`;
         }
     });
 
@@ -137,79 +148,23 @@
         statusMessageEl.style.display = 'block';
         setTimeout(() => { statusMessageEl.style.display = 'none'; }, 5000);
     }
-
-    function renderIndividualElementToggles(parametersDataFromCsv) {
-        const togglesContainer = document.getElementById('individualElementTogglesContainer');
-        togglesContainer.innerHTML = ''; // 이전 내용 지우기
-        parameterToggles.clear(); // 전역 토글 맵 초기화
-
-        const uniqueOptionsMap = new Map(); // key: optionValue, value: initialIsChecked (boolean)
-
-        for (const columnName in parametersDataFromCsv) {
-            const columnInfo = parametersDataFromCsv[columnName];
-            const columnIsActive = columnInfo.initialStatus === 'Y'; // 컬럼의 활성화 상태
-            for (const optionValue of columnInfo.options) {
-                if (optionValue) { // 빈 값은 제외
-                    if (!uniqueOptionsMap.has(optionValue)) {
-                        uniqueOptionsMap.set(optionValue, columnIsActive);
-                    } else {
-                        // 이미 옵션이 존재하면, OR 논리로 상태 업데이트 (하나라도 활성 컬럼에 속했으면 활성)
-                        if (columnIsActive) {
-                            uniqueOptionsMap.set(optionValue, true);
-                        }
-                    }
-                }
-            }
-        }
-
-        if (uniqueOptionsMap.size === 0) {
-            togglesContainer.innerHTML = '<p>관리할 개별 옵션이 없습니다.</p>';
-            return;
-        }
-        
-        // 옵션 이름을 기준으로 정렬하여 표시
-        const sortedOptionNames = Array.from(uniqueOptionsMap.keys()).sort();
-
-        for (const optionName of sortedOptionNames) {
-            const isChecked = uniqueOptionsMap.get(optionName);
-
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'toggle-item';
-
-            const toggleCheckbox = document.createElement('input');
-            toggleCheckbox.type = 'checkbox';
-            toggleCheckbox.checked = isChecked;
-            toggleCheckbox.id = `toggle_opt_${optionName.replace(/\s+/g, '_')}`; // ID 중복 방지 및 공백 처리
-            
-            const label = document.createElement('label');
-            label.htmlFor = toggleCheckbox.id;
-            label.appendChild(document.createTextNode(optionName));
-            
-            itemDiv.appendChild(toggleCheckbox);
-            itemDiv.appendChild(label);
-            togglesContainer.appendChild(itemDiv);
-
-            parameterToggles.set(optionName, toggleCheckbox); // Map에 개별 요소 이름과 토글 요소 저장
-        }
-    }
-
+    
     async function handleSaveParameterStatus() {
         const loadingStatusEl = document.getElementById('loadingStatus');
         const saveButton = document.getElementById('saveParameterStatusButton');
         saveButton.disabled = true;
-        loadingStatusEl.textContent = "개별 옵션 상태 저장 중...";
+        loadingStatusEl.textContent = "옵션 상태 저장 중...";
         loadingStatusEl.style.display = 'block';
 
         const statusPayload = {};
-        parameterToggles.forEach((toggleElement, optionName) => {
-            // 각 개별 요소(optionName)의 활성화 상태를 payload에 담음
-            statusPayload[`${optionName}_is_active`] = toggleElement.checked ? 'Y' : 'N';
+        elementStates.forEach((isChecked, optionName) => {
+            statusPayload[`${optionName}_is_active`] = isChecked ? 'Y' : 'N';
         });
 
-        console.log("Sending individual element statuses to n8n:", statusPayload);
+        console.log("Sending element statuses to n8n:", statusPayload);
 
         if (Object.keys(statusPayload).length === 0) {
-            displayStatusMessage("저장할 옵션 상태가 없습니다.", false);
+            displayStatusMessage("저장할 옵션 상태가 없습니다.", false); // 유효한 요소가 없을 경우
             loadingStatusEl.style.display = 'none';
             saveButton.disabled = false;
             return;
@@ -234,7 +189,7 @@
                 throw new Error(`n8n 저장 요청 실패 (${response.status}): ${errorText || '알 수 없는 오류'}`);
             }
             await response.json(); 
-            displayStatusMessage("개별 옵션 활성 상태가 n8n으로 전송되었습니다.", true);
+            displayStatusMessage("옵션 활성 상태가 n8n으로 전송되었습니다.", true);
 
         } catch (error) {
             console.error("Error saving element status to n8n:", error);
@@ -246,14 +201,12 @@
     }
 
     function createOrganizedTableFromCsv(csvDataText, headersToHide = []) {
-        // 이 함수는 이제 parameterToggles를 직접 수정하지 않음.
-        // 대신, 테이블 생성에 필요한 정보와 함께 parametersData 객체를 반환.
         const lines = csvDataText.split(/\r?\n/).filter(line => line.trim() !== "");
         const table = document.createElement('table');
 
         if (lines.length === 0) {
             table.innerHTML = '<tr><td>표시할 데이터가 없습니다 (CSV 비어있음).</td></tr>';
-            return { tableElement: table, parametersDataFromCsv: {} };
+            return table;
         }
 
         const allCsvHeaders = lines[0].split(',').map(header => header.trim().replace(/^"|"$/g, ''));
@@ -286,13 +239,8 @@
         
         const displayHeaders = Object.keys(parametersData);
 
-        const thead = table.createTHead();
-        const headerRow = thead.insertRow();
-        displayHeaders.forEach(headerText => {
-            const th = document.createElement('th');
-            th.textContent = headerText; // 헤더에는 텍스트만 표시
-            headerRow.appendChild(th);
-        });
+        elementStates.clear();
+        elementCheckboxes.clear();
 
         displayHeaders.forEach(headerText => {
             const originalColIndex = originalHeaderIndexMap.get(headerText);
@@ -302,49 +250,102 @@
                     if (cells.length > originalColIndex && cells[originalColIndex]) {
                         const value = String(cells[originalColIndex]).trim();
                         if (value && value.toLowerCase() !== 'undefined') {
-                            parametersData[headerText].options.add(value);
+                            parametersData[headerText].options.add(value); 
+
+                            const columnIsActive = parametersData[headerText].initialStatus === 'Y';
+                            if (!elementStates.has(value)) {
+                                elementStates.set(value, columnIsActive);
+                            } else { 
+                                if (columnIsActive) {
+                                    elementStates.set(value, true);
+                                }
+                            }
                         }
                     }
                 });
             }
         });
 
-        let maxOptionsCount = 0;
-        displayHeaders.forEach(header => {
-            if (parametersData[header] && parametersData[header].options.size > maxOptionsCount) {
-                maxOptionsCount = parametersData[header].options.size;
-            }
+        const thead = table.createTHead();
+        const headerRow = thead.insertRow();
+        displayHeaders.forEach(headerText => {
+            const th = document.createElement('th');
+            th.textContent = headerText; 
+            headerRow.appendChild(th);
         });
         
         const tbody = table.createTBody();
-        if (maxOptionsCount === 0 && displayHeaders.length > 0) {
-            const tr = tbody.insertRow();
-            const td = tr.insertCell();
-            td.colSpan = displayHeaders.length || 1;
-            td.textContent = "모든 카테고리에 유효한 옵션 값이 없습니다."; 
-            td.style.textAlign = "center";
+        if (csvDataRows.length === 0 && displayHeaders.length > 0) {
+             const tr = tbody.insertRow();
+             const td = tr.insertCell();
+             td.colSpan = displayHeaders.length || 1;
+             td.textContent = "표시할 데이터 행이 없습니다."; 
+             td.style.textAlign = "center";
         } else if (displayHeaders.length === 0) {
             const tr = tbody.insertRow();
             const td = tr.insertCell();
             td.textContent = "표시할 컬럼이 없습니다.";
-            return { tableElement: table, parametersDataFromCsv: parametersData };
+            return table;
         }
 
-        for (let i = 0; i < maxOptionsCount; i++) { 
+        csvDataRows.forEach(dataLine => {
             const tr = tbody.insertRow();
-            displayHeaders.forEach(header => {
-                const td = tr.insertCell();
-                const optionsForThisHeaderArray = Array.from(parametersData[header].options || new Set()); 
-                let cellValue = optionsForThisHeaderArray[i] || ""; 
+            const currentDataCells = dataLine.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
 
-                if (cellValue === undefined || String(cellValue).trim().toLowerCase() === 'undefined') {
-                    td.textContent = ""; 
+            displayHeaders.forEach(headerText => {
+                const td = tr.insertCell();
+                td.innerHTML = ''; // 셀 초기화
+                const originalColIndex = originalHeaderIndexMap.get(headerText);
+                let cellValue = "";
+                if (originalColIndex !== undefined && currentDataCells.length > originalColIndex) {
+                     cellValue = String(currentDataCells[originalColIndex]).trim();
+                }
+
+                if (!cellValue || cellValue.toLowerCase() === 'undefined') {
+                    // 빈 셀은 그대로 둠
                 } else {
-                    td.textContent = String(cellValue).trim(); 
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = cellValue;
+                    td.appendChild(textSpan);
+
+                    if (elementStates.has(cellValue)) {
+                        const toggleLabel = document.createElement('label');
+                        toggleLabel.className = 'toggle-switch';
+
+                        const hiddenCheckbox = document.createElement('input');
+                        hiddenCheckbox.type = 'checkbox';
+                        hiddenCheckbox.checked = elementStates.get(cellValue) || false;
+                        
+                        const sliderSpan = document.createElement('span');
+                        sliderSpan.className = 'slider round';
+
+                        toggleLabel.appendChild(hiddenCheckbox);
+                        toggleLabel.appendChild(sliderSpan);
+                        td.appendChild(toggleLabel);
+
+                        if (!elementCheckboxes.has(cellValue)) {
+                            elementCheckboxes.set(cellValue, new Set());
+                        }
+                        elementCheckboxes.get(cellValue).add(hiddenCheckbox);
+
+                        hiddenCheckbox.addEventListener('change', () => {
+                            const newState = hiddenCheckbox.checked;
+                            elementStates.set(cellValue, newState); 
+
+                            const checkboxesToSync = elementCheckboxes.get(cellValue);
+                            if (checkboxesToSync) {
+                                checkboxesToSync.forEach(cb => {
+                                    if (cb !== hiddenCheckbox) { 
+                                        cb.checked = newState;
+                                    }
+                                });
+                            }
+                        });
+                    }
                 }
             });
-        }
-        return { tableElement: table, parametersDataFromCsv: parametersData };
+        });
+        return table;
     }
 </script>
 </body>
