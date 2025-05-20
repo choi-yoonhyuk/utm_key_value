@@ -220,7 +220,7 @@
         }
 
         const allCsvHeaders = lines[0].split(',').map(header => header.trim().replace(/^"|"$/g, ''));
-        const csvDataRows = lines.slice(1);
+        const csvDataRows = lines.slice(2);
         
         const originalHeaderIndexMap = new Map(); 
         allCsvHeaders.forEach((header, index) => originalHeaderIndexMap.set(header, index));
