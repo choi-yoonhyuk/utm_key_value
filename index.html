@@ -156,37 +156,45 @@
         loadingStatusEl.textContent = "옵션 상태 저장 중...";
         loadingStatusEl.style.display = 'block';
 
-        const active_options = [];
-        const inactive_options = [];
+        const statusPayload = {
+            active_options: {},
+            inactive_options: {}
+        };
 
-        elementStates.forEach((isChecked, uniqueKey) => { 
+        elementStates.forEach((isChecked, uniqueKey) => { // uniqueKey는 "columnName::optionValue"
             const parts = uniqueKey.split('::');
-            let baseKeyPart = uniqueKey; 
             if (parts.length === 2) {
-                baseKeyPart = `${parts[0]}_${parts[1]}`; 
-            }
-            const sanitizedIdentifier = baseKeyPart.replace(/[^a-zA-Z0-9_]+/g, '_').replace(/^_+|_+$/g, '').replace(/_{2,}/g, '_');
-            
-            if (isChecked) {
-                active_options.push(sanitizedIdentifier);
-            } else {
-                inactive_options.push(sanitizedIdentifier);
+                const columnName = parts[0];      // 예: "source"
+                const optionValue = parts[1];     // 예: "google"
+                const statusColumnKey = `${columnName}_is_active`; // 예: "source_is_active"
+
+                if (isChecked) {
+                    if (!statusPayload.active_options[statusColumnKey]) {
+                        statusPayload.active_options[statusColumnKey] = [];
+                    }
+                    statusPayload.active_options[statusColumnKey].push(optionValue);
+                } else {
+                    if (!statusPayload.inactive_options[statusColumnKey]) {
+                        statusPayload.inactive_options[statusColumnKey] = [];
+                    }
+                    statusPayload.inactive_options[statusColumnKey].push(optionValue);
+                }
             }
         });
 
-        const statusPayload = {
-            active_options: active_options,
-            inactive_options: inactive_options
-        };
+        console.log("Sending NEW grouped (by status column) element statuses to n8n:", statusPayload);
 
-        console.log("Sending grouped element statuses to n8n:", statusPayload);
-
-        if (elementStates.size === 0) { // Map의 크기를 .size로 확인
+        if (elementStates.size === 0) { 
             displayStatusMessage("저장할 옵션 상태가 없습니다 (관리 대상 요소 없음).", false);
             loadingStatusEl.style.display = 'none';
             saveButton.disabled = false;
             return;
         }
+        // active_options와 inactive_options 객체가 모두 비어있는지 확인 (모든 요소가 필터링 되었을 가능성은 낮으나 방어적 코드)
+        if (Object.keys(statusPayload.active_options).length === 0 && Object.keys(statusPayload.inactive_options).length === 0 && elementStates.size > 0) {
+            console.warn("Warning: elementStates has items, but payload groups are empty. Check logic if this is unexpected.");
+        }
+
 
         if (!N8N_WEBHOOK_URL_FOR_STATUS_UPDATE || N8N_WEBHOOK_URL_FOR_STATUS_UPDATE.startsWith('여기에_')) {
             displayStatusMessage("오류: N8N 웹훅 URL이 설정되지 않아 저장할 수 없습니다.", false);
@@ -249,9 +257,8 @@
             displayHeaders.push(headerName);
         });
         
-        console.log("[Debug] Final Display Headers:", JSON.stringify(displayHeaders)); 
-        console.log("[Debug] Initializing elementStates. Number of CSV Data Rows:", csvDataRows.length, "Number of Display Headers:", displayHeaders.length);
-
+        // console.log("[Debug] Final Display Headers:", JSON.stringify(displayHeaders)); 
+        // console.log("[Debug] Initializing elementStates. Number of CSV Data Rows:", csvDataRows.length, "Number of Display Headers:", displayHeaders.length);
 
         elementStates.clear();
         elementCheckboxes.clear();
@@ -259,17 +266,13 @@
         if (csvDataRows.length > 0 && displayHeaders.length > 0) {
             csvDataRows.forEach((dataLine, rowIndex) => { 
                 const currentDataCells = dataLine.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
-                // console.log(`[Debug] Processing CSV Row ${rowIndex + 1}:`, currentDataCells.join('|')); // 전체 행 데이터 로그 (필요시 활성화)
-
                 displayHeaders.forEach(valueColumnName => { 
                     const valueColIndex = originalHeaderIndexMap.get(valueColumnName);
                     const cellValue = (valueColIndex !== undefined && currentDataCells.length > valueColIndex) 
                                     ? currentDataCells[valueColIndex] 
                                     : "";
                     
-                    // console.log(`[Debug] Row ${rowIndex + 1}, Column: '${valueColumnName}', CellValue: '${cellValue}'`); // 각 셀 값 로그 (필요시 활성화)
-
-                    if (cellValue && cellValue.trim() !== '' && cellValue.toLowerCase() !== 'undefined') { // 공백만 있는 경우도 제외
+                    if (cellValue && cellValue.trim() !== '' && cellValue.toLowerCase() !== 'undefined') { 
                         const uniqueKey = `${valueColumnName}::${cellValue}`;
                         let isActiveForRow = false; 
                         const statusColumnNameForThisValue = `${valueColumnName}_is_active`;
@@ -283,27 +286,22 @@
                             }
                         }
                         
-                        // 상세 디버깅 로그 (특정 키 또는 모든 키에 대해 출력 가능)
-                        // console.log(`[State Init Details] Row ${rowIndex+1}, Key: ${uniqueKey}, CSV Status Col: '${statusColumnNameForThisValue}', Raw Status in CSV: '${statusValueFromCell}', isActiveForRow: ${isActiveForRow}, Current Map State for Key (before this row): ${elementStates.get(uniqueKey)}`);
+                        // if (uniqueKey.includes("some_specific_key_to_debug")) { 
+                        //     console.log(`[State Init Details] Row ${rowIndex+1}, Key: ${uniqueKey}, CSV Status Col: '${statusColumnNameForThisValue}', Raw Status in CSV: '${statusValueFromCell}', isActiveForRow: ${isActiveForRow}, Current Map State for Key (before this row): ${elementStates.get(uniqueKey)}`);
+                        // }
                         
                         if (elementStates.has(uniqueKey)) {
                             if (isActiveForRow && !elementStates.get(uniqueKey)) { 
                                 elementStates.set(uniqueKey, true);
-                                // console.log(`[State Update] Key: ${uniqueKey} updated to true (was false, this row is Y)`);
                             }
                         } else { 
                             elementStates.set(uniqueKey, isActiveForRow);
-                            // console.log(`[State Set] Key: ${uniqueKey} set to ${isActiveForRow} (first encounter)`);
                         }
-                    } else {
-                        // if (valueColumnName && cellValue !== undefined) {
-                        //    console.log(`[Debug] Skipped CellValue: '${cellValue}' for Column: '${valueColumnName}' (empty, spaces, or 'undefined')`);
-                        // }
                     }
                 });
             });
         }
-        console.log("[Debug] Final elementStates populated:", elementStates.size > 0 ? elementStates : "Map is empty. (Size: " + elementStates.size + ")");
+        // console.log("[Debug] Final elementStates populated:", elementStates.size > 0 ? elementStates : "Map is empty. (Size: " + elementStates.size + ")");
         
         const thead = table.createTHead();
         const headerRow = thead.insertRow();
@@ -340,7 +338,7 @@
                      cellValue = String(currentDataCells[originalColIndex]).trim();
                 }
 
-                if (!cellValue || cellValue.trim() === '' || cellValue.toLowerCase() === 'undefined') { // 공백만 있는 경우도 제외
+                if (!cellValue || cellValue.trim() === '' || cellValue.toLowerCase() === 'undefined') { 
                     // 빈 셀
                 } else {
                     const textSpan = document.createElement('span');
@@ -357,10 +355,6 @@
                         hiddenCheckbox.type = 'checkbox';
                         const initialStateForKey = elementStates.get(uniqueKey);
                         hiddenCheckbox.checked = initialStateForKey || false; 
-                        
-                        // if (uniqueKey.includes("some_specific_key_to_debug")) { 
-                        //    console.log(`[Render Toggle] Key: ${uniqueKey}, Initial Checked State from map: ${initialStateForKey}`);
-                        // }
                         
                         const sliderSpan = document.createElement('span');
                         sliderSpan.className = 'slider round';
@@ -387,8 +381,6 @@
                                 });
                             }
                         });
-                    } else {
-                        // console.log(`[Render Warning] Key ${uniqueKey} not found in elementStates during toggle rendering (value: '${cellValue}'). No toggle created.`);
                     }
                 }
             });
