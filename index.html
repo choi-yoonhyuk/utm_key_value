@@ -159,13 +159,12 @@
         const active_options = [];
         const inactive_options = [];
 
-        elementStates.forEach((isChecked, uniqueKey) => { // uniqueKey는 "columnName::optionValue"
+        elementStates.forEach((isChecked, uniqueKey) => { 
             const parts = uniqueKey.split('::');
             let baseKeyPart = uniqueKey; 
             if (parts.length === 2) {
-                baseKeyPart = `${parts[0]}_${parts[1]}`; // "columnName_optionValue" 형태로 변환
+                baseKeyPart = `${parts[0]}_${parts[1]}`; 
             }
-            // 특수문자 등을 언더스코어로 변경하고, 앞뒤/연속된 언더스코어 정리
             const sanitizedIdentifier = baseKeyPart.replace(/[^a-zA-Z0-9_]+/g, '_').replace(/^_+|_+$/g, '').replace(/_{2,}/g, '_');
             
             if (isChecked) {
@@ -182,19 +181,12 @@
 
         console.log("Sending grouped element statuses to n8n:", statusPayload);
 
-        if (active_options.length === 0 && inactive_options.length === 0 && Object.keys(elementStates).length > 0) {
-             // elementStates에 키가 있는데도 active/inactive 목록이 모두 비었다면, 모든 요소가 필터링된 경우일 수 있음.
-             // 다만, elementStates 자체가 비어있으면 아래 조건으로 넘어감.
-             // console.log("모든 요소가 필터링되었거나 상태가 없어 저장할 내용이 없습니다.");
-        }
-
-        if (Object.keys(elementStates).length === 0) { // 관리할 요소 자체가 없는 경우
+        if (elementStates.size === 0) { // Map의 크기를 .size로 확인
             displayStatusMessage("저장할 옵션 상태가 없습니다 (관리 대상 요소 없음).", false);
             loadingStatusEl.style.display = 'none';
             saveButton.disabled = false;
             return;
         }
-
 
         if (!N8N_WEBHOOK_URL_FOR_STATUS_UPDATE || N8N_WEBHOOK_URL_FOR_STATUS_UPDATE.startsWith('여기에_')) {
             displayStatusMessage("오류: N8N 웹훅 URL이 설정되지 않아 저장할 수 없습니다.", false);
@@ -257,50 +249,61 @@
             displayHeaders.push(headerName);
         });
         
-        // console.log("[Debug] Final Display Headers:", JSON.stringify(displayHeaders)); 
+        console.log("[Debug] Final Display Headers:", JSON.stringify(displayHeaders)); 
+        console.log("[Debug] Initializing elementStates. Number of CSV Data Rows:", csvDataRows.length, "Number of Display Headers:", displayHeaders.length);
+
 
         elementStates.clear();
         elementCheckboxes.clear();
 
-        csvDataRows.forEach((dataLine, rowIndex) => { 
-            const currentDataCells = dataLine.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
-            displayHeaders.forEach(valueColumnName => { 
-                const valueColIndex = originalHeaderIndexMap.get(valueColumnName);
-                const cellValue = (valueColIndex !== undefined && currentDataCells.length > valueColIndex) 
-                                ? currentDataCells[valueColIndex] 
-                                : "";
+        if (csvDataRows.length > 0 && displayHeaders.length > 0) {
+            csvDataRows.forEach((dataLine, rowIndex) => { 
+                const currentDataCells = dataLine.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
+                // console.log(`[Debug] Processing CSV Row ${rowIndex + 1}:`, currentDataCells.join('|')); // 전체 행 데이터 로그 (필요시 활성화)
 
-                if (cellValue && cellValue.toLowerCase() !== 'undefined') {
-                    const uniqueKey = `${valueColumnName}::${cellValue}`;
-                    let isActiveForRow = false; 
-                    const statusColumnNameForThisValue = `${valueColumnName}_is_active`;
-                    const statusColIndex = originalHeaderIndexMap.get(statusColumnNameForThisValue);
-                    let statusValueFromCell = "[Status Col Not Found or Out of Bounds]";
+                displayHeaders.forEach(valueColumnName => { 
+                    const valueColIndex = originalHeaderIndexMap.get(valueColumnName);
+                    const cellValue = (valueColIndex !== undefined && currentDataCells.length > valueColIndex) 
+                                    ? currentDataCells[valueColIndex] 
+                                    : "";
+                    
+                    // console.log(`[Debug] Row ${rowIndex + 1}, Column: '${valueColumnName}', CellValue: '${cellValue}'`); // 각 셀 값 로그 (필요시 활성화)
 
-                    if (statusColIndex !== undefined && currentDataCells.length > statusColIndex) {
-                        statusValueFromCell = currentDataCells[statusColIndex];
-                        if (statusValueFromCell.toUpperCase() === 'Y') {
-                            isActiveForRow = true;
+                    if (cellValue && cellValue.trim() !== '' && cellValue.toLowerCase() !== 'undefined') { // 공백만 있는 경우도 제외
+                        const uniqueKey = `${valueColumnName}::${cellValue}`;
+                        let isActiveForRow = false; 
+                        const statusColumnNameForThisValue = `${valueColumnName}_is_active`;
+                        const statusColIndex = originalHeaderIndexMap.get(statusColumnNameForThisValue);
+                        let statusValueFromCell = "[Status Col Not Found or Out of Bounds]";
+
+                        if (statusColIndex !== undefined && currentDataCells.length > statusColIndex) {
+                            statusValueFromCell = currentDataCells[statusColIndex];
+                            if (statusValueFromCell.toUpperCase() === 'Y') {
+                                isActiveForRow = true;
+                            }
                         }
-                    }
-                    
-                    // if (uniqueKey.includes("some_specific_key_to_debug")) { 
-                    //     console.log(`[State Init] Row ${rowIndex+1}, Key: ${uniqueKey}, CSV Status Col: '${statusColumnNameForThisValue}', Raw Status in CSV: '${statusValueFromCell}', isActiveForRow: ${isActiveForRow}, Current Map State for Key (before this row): ${elementStates.get(uniqueKey)}`);
-                    // }
-                    
-                    if (elementStates.has(uniqueKey)) {
-                        if (isActiveForRow && !elementStates.get(uniqueKey)) { 
-                            elementStates.set(uniqueKey, true);
-                            // console.log(`[State Update] Key: ${uniqueKey} updated to true (was false, this row is Y)`);
+                        
+                        // 상세 디버깅 로그 (특정 키 또는 모든 키에 대해 출력 가능)
+                        // console.log(`[State Init Details] Row ${rowIndex+1}, Key: ${uniqueKey}, CSV Status Col: '${statusColumnNameForThisValue}', Raw Status in CSV: '${statusValueFromCell}', isActiveForRow: ${isActiveForRow}, Current Map State for Key (before this row): ${elementStates.get(uniqueKey)}`);
+                        
+                        if (elementStates.has(uniqueKey)) {
+                            if (isActiveForRow && !elementStates.get(uniqueKey)) { 
+                                elementStates.set(uniqueKey, true);
+                                // console.log(`[State Update] Key: ${uniqueKey} updated to true (was false, this row is Y)`);
+                            }
+                        } else { 
+                            elementStates.set(uniqueKey, isActiveForRow);
+                            // console.log(`[State Set] Key: ${uniqueKey} set to ${isActiveForRow} (first encounter)`);
                         }
-                    } else { 
-                        elementStates.set(uniqueKey, isActiveForRow);
-                        // console.log(`[State Set] Key: ${uniqueKey} set to ${isActiveForRow} (first encounter)`);
+                    } else {
+                        // if (valueColumnName && cellValue !== undefined) {
+                        //    console.log(`[Debug] Skipped CellValue: '${cellValue}' for Column: '${valueColumnName}' (empty, spaces, or 'undefined')`);
+                        // }
                     }
-                }
+                });
             });
-        });
-        // console.log("[Debug] Final elementStates populated:", elementStates);
+        }
+        console.log("[Debug] Final elementStates populated:", elementStates.size > 0 ? elementStates : "Map is empty. (Size: " + elementStates.size + ")");
         
         const thead = table.createTHead();
         const headerRow = thead.insertRow();
@@ -337,7 +340,7 @@
                      cellValue = String(currentDataCells[originalColIndex]).trim();
                 }
 
-                if (!cellValue || cellValue.toLowerCase() === 'undefined') {
+                if (!cellValue || cellValue.trim() === '' || cellValue.toLowerCase() === 'undefined') { // 공백만 있는 경우도 제외
                     // 빈 셀
                 } else {
                     const textSpan = document.createElement('span');
@@ -354,6 +357,10 @@
                         hiddenCheckbox.type = 'checkbox';
                         const initialStateForKey = elementStates.get(uniqueKey);
                         hiddenCheckbox.checked = initialStateForKey || false; 
+                        
+                        // if (uniqueKey.includes("some_specific_key_to_debug")) { 
+                        //    console.log(`[Render Toggle] Key: ${uniqueKey}, Initial Checked State from map: ${initialStateForKey}`);
+                        // }
                         
                         const sliderSpan = document.createElement('span');
                         sliderSpan.className = 'slider round';
@@ -380,6 +387,8 @@
                                 });
                             }
                         });
+                    } else {
+                        // console.log(`[Render Warning] Key ${uniqueKey} not found in elementStates during toggle rendering (value: '${cellValue}'). No toggle created.`);
                     }
                 }
             });
