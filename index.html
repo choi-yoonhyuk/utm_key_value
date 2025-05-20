@@ -219,27 +219,34 @@
         const allCsvHeaders = lines[0].split(',').map(header => header.trim().replace(/^"|"$/g, ''));
         const csvDataRows = lines.slice(1);
         
-        const originalHeaderIndexMap = new Map(); // CSV 원본 헤더명과 인덱스 매핑
+        const originalHeaderIndexMap = new Map(); 
         allCsvHeaders.forEach((header, index) => originalHeaderIndexMap.set(header, index));
 
         const lowerCaseHeadersToHide = headersToHide.map(h => h.toLowerCase());
         
-        // 표시할 컬럼 헤더 목록 결정 (숨길 컬럼 및 _is_active 컬럼 제외)
         const displayHeaders = [];
         allCsvHeaders.forEach((headerName) => {
+            const lowercasedHeader = headerName.toLowerCase();
+            // --- START DEBUG LOG FOR COLUMN HIDING ---
+            // 특정 헤더(예: 'type')가 숨김 처리되는지 확인하기 위한 로그
+            if (lowerCaseHeadersToHide.includes(lowercasedHeader)) {
+                console.log(`[CSV Header Check] Hiding Column: Original='${headerName}', Lowercased='${lowercasedHeader}', Matched in Hide list: ${JSON.stringify(lowerCaseHeadersToHide)}`);
+            }
+            // --- END DEBUG LOG ---
+
             if (headerName.endsWith('_is_active')) return; 
-            if (lowerCaseHeadersToHide.includes(headerName.toLowerCase())) return; // 'type' 컬럼 등 숨김 처리
+            if (lowerCaseHeadersToHide.includes(lowercasedHeader)) return; 
             displayHeaders.push(headerName);
         });
+        
+        console.log("[Debug] Display Headers:", JSON.stringify(displayHeaders)); // 실제로 표시될 헤더 목록 확인
 
         elementStates.clear();
         elementCheckboxes.clear();
 
-        // CSV 데이터 행을 스캔하여 elementStates 초기화
-        // 각 "컬럼명::요소값" 조합의 초기 활성화 상태를 결정 (Y wins 규칙)
         csvDataRows.forEach(dataLine => {
             const currentDataCells = dataLine.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
-            displayHeaders.forEach(valueColumnName => { // 예: "utm_source"
+            displayHeaders.forEach(valueColumnName => { 
                 const valueColIndex = originalHeaderIndexMap.get(valueColumnName);
                 const cellValue = (valueColIndex !== undefined && currentDataCells.length > valueColIndex) 
                                 ? currentDataCells[valueColIndex] 
@@ -247,9 +254,8 @@
 
                 if (cellValue && cellValue.toLowerCase() !== 'undefined') {
                     const uniqueKey = `${valueColumnName}::${cellValue}`;
-                    let isActiveForRow = false; // 해당 행에서 이 요소의 기본 상태는 N
+                    let isActiveForRow = false; 
 
-                    // 요소값 옆의 is_active 컬럼 (예: "utm_source_is_active")에서 상태 읽기
                     const statusColumnNameForThisValue = `${valueColumnName}_is_active`;
                     const statusColIndex = originalHeaderIndexMap.get(statusColumnNameForThisValue);
 
@@ -260,7 +266,6 @@
                         }
                     }
                     
-                    // "Y wins" 규칙 적용: uniqueKey에 대해 한 번이라도 Y가 나오면 최종 Y
                     if (elementStates.has(uniqueKey)) {
                         if (isActiveForRow && !elementStates.get(uniqueKey)) { 
                             elementStates.set(uniqueKey, true);
@@ -298,7 +303,7 @@
             const tr = tbody.insertRow();
             const currentDataCells = dataLine.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
 
-            displayHeaders.forEach(headerText => { // headerText는 현재 컬럼명
+            displayHeaders.forEach(headerText => { 
                 const td = tr.insertCell();
                 td.innerHTML = ''; 
                 const originalColIndex = originalHeaderIndexMap.get(headerText);
@@ -316,7 +321,7 @@
 
                     const uniqueKey = `${headerText}::${cellValue}`; 
 
-                    if (elementStates.has(uniqueKey)) { // 이 컬럼-요소 조합의 상태가 관리되고 있다면 토글 생성
+                    if (elementStates.has(uniqueKey)) { 
                         const toggleLabel = document.createElement('label');
                         toggleLabel.className = 'toggle-switch';
 
