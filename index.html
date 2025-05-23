@@ -92,19 +92,22 @@
 </div>
 
 <script>
-    const MASTER_OPTIONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vShcppno7HuVQbjoQzbaBMEvoBGt6atss9FI_-F3qSh_pzgtxw7A4NPo6Y2EYoll2y5_8wMt08X_oV0/pub?gid=1846317494&single=true&output=csv';
+    // ★★★ 중요: 이 URL은 "길쭉한" 형태의 시트 (UniqueID, ParameterType, OptionValue, is_active 컬럼을 가진 시트)를
+    // 웹에 CSV로 게시한 URL로 변경해야 합니다.
+    const MASTER_OPTIONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSOMETALLCSVURLHERE/pub?output=csv'; 
     const N8N_WEBHOOK_URL_FOR_STATUS_UPDATE = 'https://entrench-consulting.app.n8n.cloud/webhook-test/15daaf64-30ee-4b32-9426-45a8c8bd9184';
 
-    const elementStates = new Map(); 
-    const elementCheckboxes = new Map(); 
+    const initialElementStates = new Map(); // 페이지 로드 시 초기 상태 저장
+    const elementStates = new Map();      // 사용자가 변경하는 현재 상태 저장
+    // const elementCheckboxes = new Map(); // 이 예제에서는 직접 사용하지 않으나, 필요시 활용 가능
 
     document.addEventListener('DOMContentLoaded', async () => {
         const loadingStatusEl = document.getElementById('loadingStatus');
         const tableContainerEl = document.getElementById('optionsTableContainer');
         const saveButton = document.getElementById('saveParameterStatusButton');
 
-        if (!MASTER_OPTIONS_CSV_URL || MASTER_OPTIONS_CSV_URL.startsWith('여기에_')) {
-            loadingStatusEl.textContent = "오류: 구글 시트 CSV URL이 설정되지 않았습니다.";
+        if (!MASTER_OPTIONS_CSV_URL || MASTER_OPTIONS_CSV_URL.includes('SOMETALLCSVURLHERE')) {
+            loadingStatusEl.textContent = "오류: 길쭉한 형태의 구글 시트 CSV URL이 정확히 설정되지 않았습니다.";
             loadingStatusEl.style.color = "red";
             saveButton.disabled = true;
             return;
@@ -126,7 +129,8 @@
                 return;
             }
             
-            const tableElement = createOrganizedTableFromCsv(csvDataText, ['type']); 
+            // "길쭉한" CSV를 파싱하고 "넓은" 테이블로 변환하는 함수 호출
+            const tableElement = createWideTableFromTallCsv(csvDataText); 
             
             tableContainerEl.innerHTML = ''; 
             tableContainerEl.appendChild(tableElement); 
@@ -156,45 +160,25 @@
         loadingStatusEl.textContent = "옵션 상태 저장 중...";
         loadingStatusEl.style.display = 'block';
 
-        const statusPayload = {
-            active_options: {},
-            inactive_options: {}
-        };
-
-        elementStates.forEach((isChecked, uniqueKey) => { // uniqueKey는 "columnName::optionValue"
-            const parts = uniqueKey.split('::');
-            if (parts.length === 2) {
-                const columnName = parts[0];      // 예: "source"
-                const optionValue = parts[1];     // 예: "google"
-                const statusColumnKey = `${columnName}_is_active`; // 예: "source_is_active"
-
-                if (isChecked) {
-                    if (!statusPayload.active_options[statusColumnKey]) {
-                        statusPayload.active_options[statusColumnKey] = [];
-                    }
-                    statusPayload.active_options[statusColumnKey].push(optionValue);
-                } else {
-                    if (!statusPayload.inactive_options[statusColumnKey]) {
-                        statusPayload.inactive_options[statusColumnKey] = [];
-                    }
-                    statusPayload.inactive_options[statusColumnKey].push(optionValue);
-                }
+        const changedItems = [];
+        elementStates.forEach((isChecked, uniqueKey) => {
+            const initialIsChecked = initialElementStates.get(uniqueKey);
+            if (isChecked !== initialIsChecked) { // 초기 상태와 현재 상태가 다른 경우만
+                changedItems.push({
+                    uniqueKey: uniqueKey, // 예: "source::google"
+                    newValue: isChecked ? 'Y' : 'N'
+                });
             }
         });
 
-        console.log("Sending NEW grouped (by status column) element statuses to n8n:", statusPayload);
+        console.log("Sending changed items to n8n:", changedItems);
 
-        if (elementStates.size === 0) { 
-            displayStatusMessage("저장할 옵션 상태가 없습니다 (관리 대상 요소 없음).", false);
+        if (changedItems.length === 0) {
+            displayStatusMessage("변경된 옵션 상태가 없습니다.", true); // 변경 사항 없음을 알림
             loadingStatusEl.style.display = 'none';
             saveButton.disabled = false;
             return;
         }
-        // active_options와 inactive_options 객체가 모두 비어있는지 확인 (모든 요소가 필터링 되었을 가능성은 낮으나 방어적 코드)
-        if (Object.keys(statusPayload.active_options).length === 0 && Object.keys(statusPayload.inactive_options).length === 0 && elementStates.size > 0) {
-            console.warn("Warning: elementStates has items, but payload groups are empty. Check logic if this is unexpected.");
-        }
-
 
         if (!N8N_WEBHOOK_URL_FOR_STATUS_UPDATE || N8N_WEBHOOK_URL_FOR_STATUS_UPDATE.startsWith('여기에_')) {
             displayStatusMessage("오류: N8N 웹훅 URL이 설정되지 않아 저장할 수 없습니다.", false);
@@ -204,10 +188,11 @@
         }
 
         try {
+            const payload = { updates: changedItems }; // n8n으로 보낼 최종 페이로드
             const response = await fetch(N8N_WEBHOOK_URL_FOR_STATUS_UPDATE, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(statusPayload)
+                body: JSON.stringify(payload)
             });
 
             if (!response.ok) { 
@@ -215,9 +200,13 @@
                 console.error("n8n response errorText:", errorText); 
                 throw new Error(`n8n 저장 요청 실패 (${response.status}): ${errorText || '알 수 없는 n8n 오류'}`);
             }
+            // 성공 시, 초기 상태를 현재 상태로 업데이트 (다음 저장을 위해)
+            changedItems.forEach(item => {
+                initialElementStates.set(item.uniqueKey, item.newValue === 'Y');
+            });
             const result = await response.json().catch(() => ({})); 
             console.log("n8n success response:", result);
-            displayStatusMessage("옵션 활성 상태가 n8n으로 전송되었습니다.", true);
+            displayStatusMessage("옵션 활성 상태가 n8n으로 전송 및 저장되었습니다.", true);
 
         } catch (error) { 
             console.error("Error saving element status to n8n:", error);
@@ -228,163 +217,140 @@
         }
     }
 
-    function createOrganizedTableFromCsv(csvDataText, headersToHide = []) {
+    function parseTallCsv(csvDataText) {
+        const rows = [];
         const lines = csvDataText.split(/\r?\n/).filter(line => line.trim() !== "");
+        if (lines.length < 2) return rows; // 헤더 + 데이터 최소 2줄
+
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        const uniqueIdIndex = headers.indexOf('UniqueID');
+        const paramTypeIndex = headers.indexOf('ParameterType');
+        const optionValueIndex = headers.indexOf('OptionValue');
+        const isActiveIndex = headers.indexOf('is_active');
+
+        if (uniqueIdIndex === -1 || paramTypeIndex === -1 || optionValueIndex === -1 || isActiveIndex === -1) {
+            console.error("CSV 헤더에 UniqueID, ParameterType, OptionValue, is_active 중 하나 이상이 없습니다.");
+            throw new Error("필수 CSV 헤더가 누락되었습니다.");
+        }
+
+        for (let i = 1; i < lines.length; i++) {
+            const cells = lines[i].split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
+            if (cells.length >= Math.max(uniqueIdIndex, paramTypeIndex, optionValueIndex, isActiveIndex) + 1) {
+                const rowData = {
+                    UniqueID: cells[uniqueIdIndex],
+                    ParameterType: cells[paramTypeIndex],
+                    OptionValue: cells[optionValueIndex],
+                    is_active: cells[isActiveIndex]
+                };
+                // 초기 상태 및 현재 상태 맵 채우기
+                // UniqueID가 ParameterType::OptionValue 형식이라고 가정
+                const uniqueKey = rowData.UniqueID; 
+                const isActiveBool = rowData.is_active.toUpperCase() === 'Y';
+                initialElementStates.set(uniqueKey, isActiveBool);
+                elementStates.set(uniqueKey, isActiveBool); // 초기에는 현재 상태도 동일
+                rows.push(rowData);
+            }
+        }
+        return rows;
+    }
+
+    function createWideTableFromTallCsv(csvDataText) {
+        initialElementStates.clear(); // 함수 호출 시마다 초기화
+        elementStates.clear();      // 함수 호출 시마다 초기화
+
+        const tallData = parseTallCsv(csvDataText); // "길쭉한" CSV 파싱
         const table = document.createElement('table');
 
-        if (lines.length === 0) {
-            table.innerHTML = '<tr><td>표시할 데이터가 없습니다 (CSV 비어있음).</td></tr>';
+        if (tallData.length === 0) {
+            table.innerHTML = '<tr><td>표시할 데이터가 없습니다.</td></tr>';
             return table;
         }
 
-        const allCsvHeaders = lines[0].split(',').map(header => header.trim().replace(/^"|"$/g, ''));
-        const csvDataRows = lines.slice(2);
-        
-        const originalHeaderIndexMap = new Map(); 
-        allCsvHeaders.forEach((header, index) => originalHeaderIndexMap.set(header, index));
+        // ParameterType을 기준으로 데이터 그룹화
+        const groupedData = {};
+        tallData.forEach(row => {
+            if (!row.ParameterType || !row.OptionValue) return; // 필수 값 누락 시 건너뛰기
 
-        const lowerCaseHeadersToHide = headersToHide.map(h => h.toLowerCase());
-        
-        const displayHeaders = [];
-        allCsvHeaders.forEach((headerName) => {
-            const lowercasedHeader = headerName.toLowerCase();
-            if (lowerCaseHeadersToHide.includes(lowercasedHeader)) {
-                console.log(`[CSV Header Check] Hiding Column: Original='${headerName}', Lowercased='${lowercasedHeader}', Matched in Hide list: ${JSON.stringify(lowerCaseHeadersToHide)}`);
+            if (!groupedData[row.ParameterType]) {
+                groupedData[row.ParameterType] = [];
             }
-
-            if (headerName.endsWith('_is_active')) return; 
-            if (lowerCaseHeadersToHide.includes(lowercasedHeader)) return; 
-            displayHeaders.push(headerName);
-        });
-        
-        // console.log("[Debug] Final Display Headers:", JSON.stringify(displayHeaders)); 
-        // console.log("[Debug] Initializing elementStates. Number of CSV Data Rows:", csvDataRows.length, "Number of Display Headers:", displayHeaders.length);
-
-        elementStates.clear();
-        elementCheckboxes.clear();
-
-        if (csvDataRows.length > 0 && displayHeaders.length > 0) {
-            csvDataRows.forEach((dataLine, rowIndex) => { 
-                const currentDataCells = dataLine.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
-                displayHeaders.forEach(valueColumnName => { 
-                    const valueColIndex = originalHeaderIndexMap.get(valueColumnName);
-                    const cellValue = (valueColIndex !== undefined && currentDataCells.length > valueColIndex) 
-                                    ? currentDataCells[valueColIndex] 
-                                    : "";
-                    
-                    if (cellValue && cellValue.trim() !== '' && cellValue.toLowerCase() !== 'undefined') { 
-                        const uniqueKey = `${valueColumnName}::${cellValue}`;
-                        let isActiveForRow = false; 
-                        const statusColumnNameForThisValue = `${valueColumnName}_is_active`;
-                        const statusColIndex = originalHeaderIndexMap.get(statusColumnNameForThisValue);
-                        let statusValueFromCell = "[Status Col Not Found or Out of Bounds]";
-
-                        if (statusColIndex !== undefined && currentDataCells.length > statusColIndex) {
-                            statusValueFromCell = currentDataCells[statusColIndex];
-                            if (statusValueFromCell.toUpperCase() === 'Y') {
-                                isActiveForRow = true;
-                            }
-                        }
-                        
-                        // if (uniqueKey.includes("some_specific_key_to_debug")) { 
-                        //     console.log(`[State Init Details] Row ${rowIndex+1}, Key: ${uniqueKey}, CSV Status Col: '${statusColumnNameForThisValue}', Raw Status in CSV: '${statusValueFromCell}', isActiveForRow: ${isActiveForRow}, Current Map State for Key (before this row): ${elementStates.get(uniqueKey)}`);
-                        // }
-                        
-                        if (elementStates.has(uniqueKey)) {
-                            if (isActiveForRow && !elementStates.get(uniqueKey)) { 
-                                elementStates.set(uniqueKey, true);
-                            }
-                        } else { 
-                            elementStates.set(uniqueKey, isActiveForRow);
-                        }
-                    }
-                });
+            groupedData[row.ParameterType].push({
+                optionValue: row.OptionValue,
+                isActive: row.is_active.toUpperCase() === 'Y',
+                uniqueKey: row.UniqueID // UniqueID는 ParameterType::OptionValue 형식이어야 함
             });
+        });
+
+        // ParameterType (컬럼 헤더) 정렬 (선택 사항)
+        const displayHeaders = Object.keys(groupedData).sort(); 
+        if (displayHeaders.length === 0) {
+             table.innerHTML = '<tr><td>유효한 ParameterType이 없습니다.</td></tr>';
+            return table;
         }
-        // console.log("[Debug] Final elementStates populated:", elementStates.size > 0 ? elementStates : "Map is empty. (Size: " + elementStates.size + ")");
-        
+
+        // 테이블 헤더 생성
         const thead = table.createTHead();
         const headerRow = thead.insertRow();
         displayHeaders.forEach(headerText => {
             const th = document.createElement('th');
-            th.textContent = headerText; 
+            th.textContent = headerText;
             headerRow.appendChild(th);
         });
-        
+
+        // 테이블 바디 생성
         const tbody = table.createTBody();
-        if (csvDataRows.length === 0 && displayHeaders.length > 0) {
-             const tr = tbody.insertRow();
-             const td = tr.insertCell();
-             td.colSpan = displayHeaders.length || 1;
-             td.textContent = "표시할 데이터 행이 없습니다."; 
-             td.style.textAlign = "center";
-        } else if (displayHeaders.length === 0) {
+        let maxOptions = 0;
+        displayHeaders.forEach(header => {
+            if (groupedData[header].length > maxOptions) {
+                maxOptions = groupedData[header].length;
+            }
+        });
+
+        if (maxOptions === 0) {
             const tr = tbody.insertRow();
             const td = tr.insertCell();
-            td.textContent = "표시할 컬럼이 없습니다.";
+            td.colSpan = displayHeaders.length;
+            td.textContent = "표시할 옵션 값이 없습니다.";
             return table;
         }
 
-        csvDataRows.forEach(dataLine => {
+        for (let i = 0; i < maxOptions; i++) {
             const tr = tbody.insertRow();
-            const currentDataCells = dataLine.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
-
-            displayHeaders.forEach(headerText => { 
+            displayHeaders.forEach(headerText => {
                 const td = tr.insertCell();
-                td.innerHTML = ''; 
-                const originalColIndex = originalHeaderIndexMap.get(headerText);
-                let cellValue = "";
-                if (originalColIndex !== undefined && currentDataCells.length > originalColIndex) {
-                     cellValue = String(currentDataCells[originalColIndex]).trim();
-                }
-
-                if (!cellValue || cellValue.trim() === '' || cellValue.toLowerCase() === 'undefined') { 
-                    // 빈 셀
-                } else {
+                const optionsForThisHeader = groupedData[headerText];
+                if (optionsForThisHeader && i < optionsForThisHeader.length) {
+                    const optionData = optionsForThisHeader[i];
+                    
                     const textSpan = document.createElement('span');
-                    textSpan.textContent = cellValue;
+                    textSpan.textContent = optionData.optionValue;
                     td.appendChild(textSpan);
 
-                    const uniqueKey = `${headerText}::${cellValue}`; 
+                    const toggleLabel = document.createElement('label');
+                    toggleLabel.className = 'toggle-switch';
 
-                    if (elementStates.has(uniqueKey)) { 
-                        const toggleLabel = document.createElement('label');
-                        toggleLabel.className = 'toggle-switch';
+                    const hiddenCheckbox = document.createElement('input');
+                    hiddenCheckbox.type = 'checkbox';
+                    hiddenCheckbox.checked = optionData.isActive;
+                    hiddenCheckbox.dataset.uniqueKey = optionData.uniqueKey;
 
-                        const hiddenCheckbox = document.createElement('input');
-                        hiddenCheckbox.type = 'checkbox';
-                        const initialStateForKey = elementStates.get(uniqueKey);
-                        hiddenCheckbox.checked = initialStateForKey || false; 
-                        
-                        const sliderSpan = document.createElement('span');
-                        sliderSpan.className = 'slider round';
+                    hiddenCheckbox.addEventListener('change', (event) => {
+                        elementStates.set(event.target.dataset.uniqueKey, event.target.checked);
+                        // console.log("elementStates updated:", elementStates); // 디버깅용
+                    });
+                    
+                    const sliderSpan = document.createElement('span');
+                    sliderSpan.className = 'slider round';
 
-                        toggleLabel.appendChild(hiddenCheckbox);
-                        toggleLabel.appendChild(sliderSpan);
-                        td.appendChild(toggleLabel);
+                    toggleLabel.appendChild(hiddenCheckbox);
+                    toggleLabel.appendChild(sliderSpan);
+                    td.appendChild(toggleLabel);
 
-                        if (!elementCheckboxes.has(uniqueKey)) {
-                            elementCheckboxes.set(uniqueKey, new Set());
-                        }
-                        elementCheckboxes.get(uniqueKey).add(hiddenCheckbox);
-
-                        hiddenCheckbox.addEventListener('change', () => {
-                            const newState = hiddenCheckbox.checked;
-                            elementStates.set(uniqueKey, newState); 
-
-                            const checkboxesToSync = elementCheckboxes.get(uniqueKey);
-                            if (checkboxesToSync) {
-                                checkboxesToSync.forEach(cb => {
-                                    if (cb !== hiddenCheckbox) { 
-                                        cb.checked = newState;
-                                    }
-                                });
-                            }
-                        });
-                    }
+                } else {
+                    td.textContent = ""; // 해당 인덱스에 옵션이 없는 경우 빈 칸
                 }
             });
-        });
+        }
         return table;
     }
 </script>
