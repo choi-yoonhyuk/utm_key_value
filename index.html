@@ -223,9 +223,9 @@
         if (lines.length < 2) return rows; // 헤더 + 데이터 최소 2줄
 
         const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-        const uniqueIdIndex = headers.indexOf('UniqueID');
-        const paramTypeIndex = headers.indexOf('ParameterType');
-        const optionValueIndex = headers.indexOf('OptionValue');
+        const uniqueIdIndex = headers.indexOf('unique_id');
+        const paramTypeIndex = headers.indexOf('parameter_type');
+        const optionValueIndex = headers.indexOf('option_value');
         const isActiveIndex = headers.indexOf('is_active');
 
         if (uniqueIdIndex === -1 || paramTypeIndex === -1 || optionValueIndex === -1 || isActiveIndex === -1) {
