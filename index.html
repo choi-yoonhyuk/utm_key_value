@@ -16,19 +16,8 @@
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: middle; word-wrap: break-word; }
     th { background-color: #f0f0f0; position: sticky; top: 0; z-index: 1; font-weight: bold; }
 
-    /* td > span { margin-right: 8px; vertical-align: middle;} */
+    td > span { margin-right: 8px; vertical-align: middle;}
 
-      /* --- 수정된/추가된 CSS 규칙 --- */
-      #optionsTableContainer table tbody td {
-        display: flex;
-        justify-content: space-between; /* 텍스트는 왼쪽, 토글은 오른쪽 */
-        align-items: center;           /* 세로 중앙 정렬 */
-    }
-    td > span { 
-        margin-right: 8px; /* 텍스트와 토글 사이의 간격 */
-        /* vertical-align: middle; 이 속성은 flex align-items로 대체될 수 있습니다. */
-    }
-    /* --- 수정된/추가된 CSS 규칙 끝 --- */
 
     /* 토글 스위치 CSS */
     .toggle-switch {
