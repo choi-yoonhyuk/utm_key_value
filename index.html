@@ -16,18 +16,7 @@ table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: 
 th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: middle; word-wrap: break-word; }
 th { background-color: #f0f0f0; position: sticky; top: 0; z-index: 1; font-weight: bold; }
 
-/* td > span { margin-right: 8px; vertical-align: middle;} */
-
-#optionsTableContainer table tbody td { /* 옵션 테이블의 tbody 내 td에만 적용 */
-display: flex;
-justify-content: space-between; /* 내부 요소들을 양쪽 끝으로 밀어냄 (텍스트는 왼쪽, 토글은 오른쪽) */
-align-items: center;           /* 내부 요소들을 세로 중앙 정렬 */
-}
-
-td > span {
-margin-right: 8px; /* 텍스트와 토글 사이의 간격 */
-/* vertical-align: middle; 이 속성은 flex align-items로 대체될 수 있습니다. */
-}
+td > span { margin-right: 8px; vertical-align: middle;}
 
 
 /* 토글 스위치 CSS */
@@ -37,7 +26,6 @@ margin-right: 8px; /* 텍스트와 토글 사이의 간격 */
     width: 40px; 
     height: 20px; 
     vertical-align: middle;
-    flex-shrink: 0; /* 토글 스위치 크기가 줄어들지 않도록 함 */
 }
 .toggle-switch input {
     opacity: 0;
