@@ -16,24 +16,9 @@ table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: 
 th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: middle; word-wrap: break-word; }
 th { background-color: #f0f0f0; position: sticky; top: 0; z-index: 1; font-weight: bold; }
 
-/* td > span { margin-right: 8px; vertical-align: middle;} */
+td > span { margin-right: 8px; vertical-align: middle;}
 
 
-#optionsTableContainer table tbody td {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    /* padding: 8px;  이 패딩이 내부 flex 아이템 정렬에 영향을 줄 수 있으므로, 
-                       자식 요소에 패딩을 주거나 td의 패딩을 조절할 수 있습니다. */
-}
-
-#optionsTableContainer table tbody td > span { /* 옵션 값 텍스트 */
-    /* flex-grow: 1; */ /* 이 속성을 빼거나 조절하여 텍스트가 너무 많은 공간을 차지하지 않도록 할 수 있습니다. */
-    margin-right: 8px; /* 텍스트와 토글 사이의 최소 간격 */
-    white-space: nowrap; /* 텍스트가 너무 길면 줄바꿈 방지 (선택 사항) */
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
 
 
 /* 토글 스위치 CSS */
@@ -43,8 +28,6 @@ display: inline-block;
 width: 40px; 
 height: 20px; 
 vertical-align: middle;
-margin-left: auto; /* 이렇게 하면 토글이 오른쪽으로 밀립니다. */
-flex-shrink: 0;
 }
 .toggle-switch input {
 opacity: 0;
