@@ -16,60 +16,81 @@ table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: 
 th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: middle; word-wrap: break-word; }
 th { background-color: #f0f0f0; position: sticky; top: 0; z-index: 1; font-weight: bold; }
 
-td > span { margin-right: 8px; vertical-align: middle;}
+/* td > span { margin-right: 8px; vertical-align: middle;} */
+
+
+
+/* --- 수정된/추가된 CSS 규칙 --- */
+#optionsTableContainer table tbody td {
+    display: flex;
+    justify-content: space-between; /* 내부 요소들을 양쪽 끝으로 밀어냄 */
+    align-items: center;           /* 세로 중앙 정렬 */
+    /* white-space: nowrap; */ /* 이 줄을 추가하면 내용이 한 줄로 강제되지만, 셀 너비가 부족하면 문제가 될 수 있음 */
+}
+
+#optionsTableContainer table tbody td > span { /* 텍스트 부분 */
+    flex-grow: 1; /* 텍스트가 남은 공간을 최대한 차지하도록 함 */
+    white-space: nowrap; /* 텍스트가 길어도 줄바꿈 안 함 (선택 사항) */
+    overflow: hidden;    /* 넘치는 텍스트 숨김 (선택 사항) */
+    text-overflow: ellipsis; /* 넘치는 텍스트 ... 처리 (선택 사항) */
+    margin-right: 8px; /* 텍스트와 토글 사이 간격 */
+}
+
+
 
 
 /* 토글 스위치 CSS */
 .toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 40px; 
-    height: 20px; 
-    vertical-align: middle;
+position: relative;
+display: inline-block;
+width: 40px; 
+height: 20px; 
+vertical-align: middle;
+flex-shrink: 0; /* 토글 스위치 크기 유지 */
 }
 .toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
+opacity: 0;
+width: 0;
+height: 0;
 }
 .slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #ccc; 
-    -webkit-transition: .4s;
-    transition: .4s;
+position: absolute;
+cursor: pointer;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+background-color: #ccc; 
+-webkit-transition: .4s;
+transition: .4s;
 }
 .slider:before {
-    position: absolute;
-    content: "";
-    height: 16px; 
-    width: 16px;  
-    left: 2px;    
-    bottom: 2px;  
-    background-color: white;
-    -webkit-transition: .4s;
-    transition: .4s;
+position: absolute;
+content: "";
+height: 16px; 
+width: 16px;  
+left: 2px;    
+bottom: 2px;  
+background-color: white;
+-webkit-transition: .4s;
+transition: .4s;
 }
 input:checked + .slider {
-    background-color: #28a745; 
+background-color: #28a745; 
 }
 input:focus + .slider {
-    box-shadow: 0 0 1px #28a745;
+box-shadow: 0 0 1px #28a745;
 }
 input:checked + .slider:before {
-    -webkit-transform: translateX(20px); 
-    -ms-transform: translateX(20px);
-    transform: translateX(20px);
+-webkit-transform: translateX(20px); 
+-ms-transform: translateX(20px);
+transform: translateX(20px);
 }
 .slider.round {
-    border-radius: 20px; 
+border-radius: 20px; 
 }
 .slider.round:before {
-    border-radius: 50%; 
+border-radius: 50%; 
 }
 
 #loadingStatus { font-style: italic; color: #777; margin-bottom: 15px; }
@@ -104,275 +125,275 @@ const elementStates = new Map();
 
 // --- 헤더 이름 매핑 객체 정의 ---
 const headerDisplayMap = {
-    'medium': '매체',
-    'source': '소스',
-    'utm_campaign_ad_target': '광고타겟',
-    'utm_campaign_ad_type': '광고타입',
-    'utm_campaign_creative_type': '소재타입',
-    'utm_campaign_device_type': '기기카테고리',
-    'utm_campaign_event_type': '기획전종류',
-    'utm_campaign_goal': '캠페인목표',
-    'utm_campaign_product_category': '상품카테고리',
-    'utm_content_content_action': '목표행동'
-    // CSV의 ParameterType 값과 일치하는 다른 키들도 필요시 추가
+'medium': '매체',
+'source': '소스',
+'utm_campaign_ad_target': '광고타겟',
+'utm_campaign_ad_type': '광고타입',
+'utm_campaign_creative_type': '소재타입',
+'utm_campaign_device_type': '기기카테고리',
+'utm_campaign_event_type': '기획전종류',
+'utm_campaign_goal': '캠페인목표',
+'utm_campaign_product_category': '상품카테고리',
+'utm_content_content_action': '목표행동'
+// CSV의 ParameterType 값과 일치하는 다른 키들도 필요시 추가
 };
 // --- 헤더 이름 매핑 객체 정의 끝 ---
 
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const loadingStatusEl = document.getElementById('loadingStatus');
-    const tableContainerEl = document.getElementById('optionsTableContainer');
-    const saveButton = document.getElementById('saveParameterStatusButton');
+const loadingStatusEl = document.getElementById('loadingStatus');
+const tableContainerEl = document.getElementById('optionsTableContainer');
+const saveButton = document.getElementById('saveParameterStatusButton');
 
-    if (!MASTER_OPTIONS_CSV_URL || MASTER_OPTIONS_CSV_URL.includes('SOMETALLCSVURLHERE')) {
-        loadingStatusEl.textContent = "오류: 길쭉한 형태의 구글 시트 CSV URL이 정확히 설정되지 않았습니다.";
-        loadingStatusEl.style.color = "red";
-        saveButton.disabled = true;
+if (!MASTER_OPTIONS_CSV_URL || MASTER_OPTIONS_CSV_URL.includes('SOMETALLCSVURLHERE')) {
+    loadingStatusEl.textContent = "오류: 길쭉한 형태의 구글 시트 CSV URL이 정확히 설정되지 않았습니다.";
+    loadingStatusEl.style.color = "red";
+    saveButton.disabled = true;
+    return;
+}
+if (!N8N_WEBHOOK_URL_FOR_STATUS_UPDATE || N8N_WEBHOOK_URL_FOR_STATUS_UPDATE.startsWith('여기에_')) {
+    console.warn("N8N 웹훅 URL이 설정되지 않았습니다. '저장' 기능이 정상 동작하지 않을 수 있습니다.");
+}
+
+saveButton.addEventListener('click', handleSaveParameterStatus);
+
+try {
+    loadingStatusEl.textContent = "옵션 목록 로딩 중...";
+    const response = await fetch(MASTER_OPTIONS_CSV_URL, { cache: 'no-cache' }); 
+    if (!response.ok) throw new Error(`마스터 옵션 CSV 로드 실패 (상태 코드: ${response.status})`);
+    const csvDataText = await response.text(); 
+    if (!csvDataText.trim()) {
+        loadingStatusEl.textContent = "옵션 데이터가 비어있거나 가져올 수 없습니다.";
+        tableContainerEl.innerHTML = '<p>표시할 옵션 데이터가 없습니다.</p>';
         return;
     }
-    if (!N8N_WEBHOOK_URL_FOR_STATUS_UPDATE || N8N_WEBHOOK_URL_FOR_STATUS_UPDATE.startsWith('여기에_')) {
-        console.warn("N8N 웹훅 URL이 설정되지 않았습니다. '저장' 기능이 정상 동작하지 않을 수 있습니다.");
-    }
     
-    saveButton.addEventListener('click', handleSaveParameterStatus);
+    const tableElement = createWideTableFromTallCsv(csvDataText); 
+    
+    tableContainerEl.innerHTML = ''; 
+    tableContainerEl.appendChild(tableElement); 
+    
+    loadingStatusEl.style.display = 'none'; 
 
-    try {
-        loadingStatusEl.textContent = "옵션 목록 로딩 중...";
-        const response = await fetch(MASTER_OPTIONS_CSV_URL, { cache: 'no-cache' }); 
-        if (!response.ok) throw new Error(`마스터 옵션 CSV 로드 실패 (상태 코드: ${response.status})`);
-        const csvDataText = await response.text(); 
-        if (!csvDataText.trim()) {
-            loadingStatusEl.textContent = "옵션 데이터가 비어있거나 가져올 수 없습니다.";
-            tableContainerEl.innerHTML = '<p>표시할 옵션 데이터가 없습니다.</p>';
-            return;
-        }
-        
-        const tableElement = createWideTableFromTallCsv(csvDataText); 
-        
-        tableContainerEl.innerHTML = ''; 
-        tableContainerEl.appendChild(tableElement); 
-        
-        loadingStatusEl.style.display = 'none'; 
-
-    } catch (error) {
-        console.error("마스터 옵션 로딩 또는 표시 오류:", error);
-        loadingStatusEl.textContent = `오류: ${error.message}`;
-        loadingStatusEl.style.color = "red";
-        tableContainerEl.innerHTML = '<p>옵션 목록을 불러오는 데 실패했습니다.</p>';
-    }
+} catch (error) {
+    console.error("마스터 옵션 로딩 또는 표시 오류:", error);
+    loadingStatusEl.textContent = `오류: ${error.message}`;
+    loadingStatusEl.style.color = "red";
+    tableContainerEl.innerHTML = '<p>옵션 목록을 불러오는 데 실패했습니다.</p>';
+}
 });
 
 function displayStatusMessage(message, isSuccess) {
-    const statusMessageEl = document.getElementById('statusMessage');
-    statusMessageEl.textContent = message;
-    statusMessageEl.className = 'status-message ' + (isSuccess ? 'success' : 'error');
-    statusMessageEl.style.display = 'block';
-    setTimeout(() => { statusMessageEl.style.display = 'none'; }, 5000);
+const statusMessageEl = document.getElementById('statusMessage');
+statusMessageEl.textContent = message;
+statusMessageEl.className = 'status-message ' + (isSuccess ? 'success' : 'error');
+statusMessageEl.style.display = 'block';
+setTimeout(() => { statusMessageEl.style.display = 'none'; }, 5000);
 }
 
 async function handleSaveParameterStatus() {
-    const loadingStatusEl = document.getElementById('loadingStatus');
-    const saveButton = document.getElementById('saveParameterStatusButton');
-    saveButton.disabled = true;
-    loadingStatusEl.textContent = "옵션 상태 저장 중...";
-    loadingStatusEl.style.display = 'block';
+const loadingStatusEl = document.getElementById('loadingStatus');
+const saveButton = document.getElementById('saveParameterStatusButton');
+saveButton.disabled = true;
+loadingStatusEl.textContent = "옵션 상태 저장 중...";
+loadingStatusEl.style.display = 'block';
 
-    const changedItems = [];
-    elementStates.forEach((isChecked, uniqueKey) => {
-        const initialIsChecked = initialElementStates.get(uniqueKey);
-        if (isChecked !== initialIsChecked) { 
-            changedItems.push({
-                uniqueKey: uniqueKey, 
-                newValue: isChecked ? 'Y' : 'N'
-            });
-        }
+const changedItems = [];
+elementStates.forEach((isChecked, uniqueKey) => {
+    const initialIsChecked = initialElementStates.get(uniqueKey);
+    if (isChecked !== initialIsChecked) { 
+        changedItems.push({
+            uniqueKey: uniqueKey, 
+            newValue: isChecked ? 'Y' : 'N'
+        });
+    }
+});
+
+console.log("Sending changed items to n8n:", changedItems);
+
+if (changedItems.length === 0) {
+    displayStatusMessage("변경된 옵션 상태가 없습니다.", true);
+    loadingStatusEl.style.display = 'none';
+    saveButton.disabled = false;
+    return;
+}
+
+if (!N8N_WEBHOOK_URL_FOR_STATUS_UPDATE || N8N_WEBHOOK_URL_FOR_STATUS_UPDATE.startsWith('여기에_')) {
+    displayStatusMessage("오류: N8N 웹훅 URL이 설정되지 않아 저장할 수 없습니다.", false);
+    loadingStatusEl.style.display = 'none';
+    saveButton.disabled = false;
+    return;
+}
+
+try {
+    const payload = { updates: changedItems }; 
+    const response = await fetch(N8N_WEBHOOK_URL_FOR_STATUS_UPDATE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
     });
 
-    console.log("Sending changed items to n8n:", changedItems);
-
-    if (changedItems.length === 0) {
-        displayStatusMessage("변경된 옵션 상태가 없습니다.", true);
-        loadingStatusEl.style.display = 'none';
-        saveButton.disabled = false;
-        return;
+    if (!response.ok) { 
+        const errorText = await response.text(); 
+        console.error("n8n response errorText:", errorText); 
+        throw new Error(`n8n 저장 요청 실패 (${response.status}): ${errorText || '알 수 없는 n8n 오류'}`);
     }
-
-    if (!N8N_WEBHOOK_URL_FOR_STATUS_UPDATE || N8N_WEBHOOK_URL_FOR_STATUS_UPDATE.startsWith('여기에_')) {
-        displayStatusMessage("오류: N8N 웹훅 URL이 설정되지 않아 저장할 수 없습니다.", false);
-        loadingStatusEl.style.display = 'none';
-        saveButton.disabled = false;
-        return;
-    }
-
-    try {
-        const payload = { updates: changedItems }; 
-        const response = await fetch(N8N_WEBHOOK_URL_FOR_STATUS_UPDATE, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) { 
-            const errorText = await response.text(); 
-            console.error("n8n response errorText:", errorText); 
-            throw new Error(`n8n 저장 요청 실패 (${response.status}): ${errorText || '알 수 없는 n8n 오류'}`);
-        }
-        
-        changedItems.forEach(item => {
-            initialElementStates.set(item.uniqueKey, item.newValue === 'Y');
-        });
-        const result = await response.json().catch(() => ({})); 
-        console.log("n8n success response:", result);
-        displayStatusMessage("옵션 활성 상태가 n8n으로 전송 및 저장되었습니다. (페이지가 곧 새로고침됩니다)", true); // 메시지 수정
-        
-        // 저장 성공 후 1초 뒤 페이지 새로고침 (선택 사항)
-        setTimeout(() => {
-                location.reload();
-        }, 1000);
+    
+    changedItems.forEach(item => {
+        initialElementStates.set(item.uniqueKey, item.newValue === 'Y');
+    });
+    const result = await response.json().catch(() => ({})); 
+    console.log("n8n success response:", result);
+    displayStatusMessage("옵션 활성 상태가 n8n으로 전송 및 저장되었습니다. (페이지가 곧 새로고침됩니다)", true); // 메시지 수정
+    
+    // 저장 성공 후 1초 뒤 페이지 새로고침 (선택 사항)
+    setTimeout(() => {
+            location.reload();
+    }, 1000);
 
 
-    } catch (error) { 
-        console.error("Error saving element status to n8n:", error);
-        displayStatusMessage(error.message, false); 
-    } finally {
-        // hideLoading()과 saveButton.disabled = false; 는 새로고침 전에 실행되거나,
-        // 새로고침으로 인해 의미가 없을 수 있으므로, 필요에 따라 조정합니다.
-        // 여기서는 즉시 새로고침하지 않으므로, 그대로 두거나 지연을 더 길게 할 수 있습니다.
-        loadingStatusEl.style.display = 'none'; 
-        saveButton.disabled = false;
-    }
+} catch (error) { 
+    console.error("Error saving element status to n8n:", error);
+    displayStatusMessage(error.message, false); 
+} finally {
+    // hideLoading()과 saveButton.disabled = false; 는 새로고침 전에 실행되거나,
+    // 새로고침으로 인해 의미가 없을 수 있으므로, 필요에 따라 조정합니다.
+    // 여기서는 즉시 새로고침하지 않으므로, 그대로 두거나 지연을 더 길게 할 수 있습니다.
+    loadingStatusEl.style.display = 'none'; 
+    saveButton.disabled = false;
+}
 }
 
 function parseTallCsv(csvDataText) {
-    const rows = [];
-    const lines = csvDataText.split(/\r?\n/).filter(line => line.trim() !== "");
-    if (lines.length < 2) return rows;
+const rows = [];
+const lines = csvDataText.split(/\r?\n/).filter(line => line.trim() !== "");
+if (lines.length < 2) return rows;
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-    const uniqueIdIndex = headers.indexOf('unique_id');
-    const paramTypeIndex = headers.indexOf('parameter_type');
-    const optionValueIndex = headers.indexOf('option_value');
-    const isActiveIndex = headers.indexOf('is_active');
+const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+const uniqueIdIndex = headers.indexOf('unique_id');
+const paramTypeIndex = headers.indexOf('parameter_type');
+const optionValueIndex = headers.indexOf('option_value');
+const isActiveIndex = headers.indexOf('is_active');
 
-    if (uniqueIdIndex === -1 || paramTypeIndex === -1 || optionValueIndex === -1 || isActiveIndex === -1) {
-        console.error("CSV 헤더에 UniqueID, ParameterType, OptionValue, is_active 중 하나 이상이 없습니다.");
-        throw new Error("필수 CSV 헤더가 누락되었습니다.");
+if (uniqueIdIndex === -1 || paramTypeIndex === -1 || optionValueIndex === -1 || isActiveIndex === -1) {
+    console.error("CSV 헤더에 UniqueID, ParameterType, OptionValue, is_active 중 하나 이상이 없습니다.");
+    throw new Error("필수 CSV 헤더가 누락되었습니다.");
+}
+
+for (let i = 1; i < lines.length; i++) {
+    const cells = lines[i].split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
+    if (cells.length >= Math.max(uniqueIdIndex, paramTypeIndex, optionValueIndex, isActiveIndex) + 1) {
+        const rowData = {
+            UniqueID: cells[uniqueIdIndex],
+            ParameterType: cells[paramTypeIndex],
+            OptionValue: cells[optionValueIndex],
+            is_active: cells[isActiveIndex]
+        };
+        const uniqueKey = rowData.UniqueID; 
+        const isActiveBool = rowData.is_active.toUpperCase() === 'Y';
+        initialElementStates.set(uniqueKey, isActiveBool);
+        elementStates.set(uniqueKey, isActiveBool); 
+        rows.push(rowData);
     }
-
-    for (let i = 1; i < lines.length; i++) {
-        const cells = lines[i].split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
-        if (cells.length >= Math.max(uniqueIdIndex, paramTypeIndex, optionValueIndex, isActiveIndex) + 1) {
-            const rowData = {
-                UniqueID: cells[uniqueIdIndex],
-                ParameterType: cells[paramTypeIndex],
-                OptionValue: cells[optionValueIndex],
-                is_active: cells[isActiveIndex]
-            };
-            const uniqueKey = rowData.UniqueID; 
-            const isActiveBool = rowData.is_active.toUpperCase() === 'Y';
-            initialElementStates.set(uniqueKey, isActiveBool);
-            elementStates.set(uniqueKey, isActiveBool); 
-            rows.push(rowData);
-        }
-    }
-    return rows;
+}
+return rows;
 }
 
 function createWideTableFromTallCsv(csvDataText) {
-    initialElementStates.clear(); 
-    elementStates.clear();       
+initialElementStates.clear(); 
+elementStates.clear();       
 
-    const tallData = parseTallCsv(csvDataText); 
-    const table = document.createElement('table');
+const tallData = parseTallCsv(csvDataText); 
+const table = document.createElement('table');
 
-    if (tallData.length === 0) {
-        table.innerHTML = '<tr><td>표시할 데이터가 없습니다.</td></tr>';
-        return table;
-    }
-
-    const groupedData = {};
-    tallData.forEach(row => {
-        if (!row.ParameterType || !row.OptionValue) return;
-
-        if (!groupedData[row.ParameterType]) {
-            groupedData[row.ParameterType] = [];
-        }
-        groupedData[row.ParameterType].push({
-            optionValue: row.OptionValue,
-            isActive: row.is_active.toUpperCase() === 'Y',
-            uniqueKey: row.UniqueID 
-        });
-    });
-
-    const originalHeaders = Object.keys(groupedData).sort(); // 원본 ParameterType 값들
-    if (originalHeaders.length === 0) {
-            table.innerHTML = '<tr><td>유효한 ParameterType이 없습니다.</td></tr>';
-        return table;
-    }
-
-    const thead = table.createTHead();
-    const headerRow = thead.insertRow();
-    originalHeaders.forEach(originalHeaderText => { // originalHeaderText는 "source", "medium" 등
-        const th = document.createElement('th');
-        // --- 헤더 이름 변경 로직 ---
-        th.textContent = headerDisplayMap[originalHeaderText] || originalHeaderText;
-        // --- 헤더 이름 변경 로직 끝 ---
-        headerRow.appendChild(th);
-    });
-
-    const tbody = table.createTBody();
-    let maxOptions = 0;
-    originalHeaders.forEach(header => {
-        if (groupedData[header].length > maxOptions) {
-            maxOptions = groupedData[header].length;
-        }
-    });
-
-    if (maxOptions === 0) {
-        const tr = tbody.insertRow();
-        const td = tr.insertCell();
-        td.colSpan = originalHeaders.length;
-        td.textContent = "표시할 옵션 값이 없습니다.";
-        return table;
-    }
-
-    for (let i = 0; i < maxOptions; i++) {
-        const tr = tbody.insertRow();
-        originalHeaders.forEach(headerText => {
-            const td = tr.insertCell();
-            const optionsForThisHeader = groupedData[headerText];
-            if (optionsForThisHeader && i < optionsForThisHeader.length) {
-                const optionData = optionsForThisHeader[i];
-                
-                const textSpan = document.createElement('span');
-                textSpan.textContent = optionData.optionValue;
-                td.appendChild(textSpan);
-
-                const toggleLabel = document.createElement('label');
-                toggleLabel.className = 'toggle-switch';
-
-                const hiddenCheckbox = document.createElement('input');
-                hiddenCheckbox.type = 'checkbox';
-                hiddenCheckbox.checked = optionData.isActive;
-                hiddenCheckbox.dataset.uniqueKey = optionData.uniqueKey;
-
-                hiddenCheckbox.addEventListener('change', (event) => {
-                    elementStates.set(event.target.dataset.uniqueKey, event.target.checked);
-                });
-                
-                const sliderSpan = document.createElement('span');
-                sliderSpan.className = 'slider round';
-
-                toggleLabel.appendChild(hiddenCheckbox);
-                toggleLabel.appendChild(sliderSpan);
-                td.appendChild(toggleLabel);
-
-            } else {
-                td.textContent = ""; 
-            }
-        });
-    }
+if (tallData.length === 0) {
+    table.innerHTML = '<tr><td>표시할 데이터가 없습니다.</td></tr>';
     return table;
+}
+
+const groupedData = {};
+tallData.forEach(row => {
+    if (!row.ParameterType || !row.OptionValue) return;
+
+    if (!groupedData[row.ParameterType]) {
+        groupedData[row.ParameterType] = [];
+    }
+    groupedData[row.ParameterType].push({
+        optionValue: row.OptionValue,
+        isActive: row.is_active.toUpperCase() === 'Y',
+        uniqueKey: row.UniqueID 
+    });
+});
+
+const originalHeaders = Object.keys(groupedData).sort(); // 원본 ParameterType 값들
+if (originalHeaders.length === 0) {
+        table.innerHTML = '<tr><td>유효한 ParameterType이 없습니다.</td></tr>';
+    return table;
+}
+
+const thead = table.createTHead();
+const headerRow = thead.insertRow();
+originalHeaders.forEach(originalHeaderText => { // originalHeaderText는 "source", "medium" 등
+    const th = document.createElement('th');
+    // --- 헤더 이름 변경 로직 ---
+    th.textContent = headerDisplayMap[originalHeaderText] || originalHeaderText;
+    // --- 헤더 이름 변경 로직 끝 ---
+    headerRow.appendChild(th);
+});
+
+const tbody = table.createTBody();
+let maxOptions = 0;
+originalHeaders.forEach(header => {
+    if (groupedData[header].length > maxOptions) {
+        maxOptions = groupedData[header].length;
+    }
+});
+
+if (maxOptions === 0) {
+    const tr = tbody.insertRow();
+    const td = tr.insertCell();
+    td.colSpan = originalHeaders.length;
+    td.textContent = "표시할 옵션 값이 없습니다.";
+    return table;
+}
+
+for (let i = 0; i < maxOptions; i++) {
+    const tr = tbody.insertRow();
+    originalHeaders.forEach(headerText => {
+        const td = tr.insertCell();
+        const optionsForThisHeader = groupedData[headerText];
+        if (optionsForThisHeader && i < optionsForThisHeader.length) {
+            const optionData = optionsForThisHeader[i];
+            
+            const textSpan = document.createElement('span');
+            textSpan.textContent = optionData.optionValue;
+            td.appendChild(textSpan);
+
+            const toggleLabel = document.createElement('label');
+            toggleLabel.className = 'toggle-switch';
+
+            const hiddenCheckbox = document.createElement('input');
+            hiddenCheckbox.type = 'checkbox';
+            hiddenCheckbox.checked = optionData.isActive;
+            hiddenCheckbox.dataset.uniqueKey = optionData.uniqueKey;
+
+            hiddenCheckbox.addEventListener('change', (event) => {
+                elementStates.set(event.target.dataset.uniqueKey, event.target.checked);
+            });
+            
+            const sliderSpan = document.createElement('span');
+            sliderSpan.className = 'slider round';
+
+            toggleLabel.appendChild(hiddenCheckbox);
+            toggleLabel.appendChild(sliderSpan);
+            td.appendChild(toggleLabel);
+
+        } else {
+            td.textContent = ""; 
+        }
+    });
+}
+return table;
 }
 </script>
 </body>
